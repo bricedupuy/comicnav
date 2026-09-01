@@ -112,12 +112,6 @@ models:
 
 If the checkpoint is Ultralytics-compatible, no Python changes should be required.
 
-## Dokploy
-
-Create a Docker Compose application from this repository. Dokploy can expose container port `8000` through its Domains configuration. The named Docker volume persists Hugging Face downloads across deployments.
-
-For public deployment, put rate limiting and request-size controls in front of this API (Dokploy/Traefik and/or Cloudflare). Keep one Uvicorn worker initially so a large PyTorch model is not duplicated in RAM per worker.
-
 ## CPU/GPU
 
 Default is CPU:
@@ -152,4 +146,4 @@ The editor uses the API from the same origin:
 - **Replace existing panels** can be disabled to compare/append detections.
 - Export produces per-page Readium Guided Navigation JSON with `xywh=percent:` and `points=percent:` fragments.
 
-Because the editor is served by the same FastAPI container, no CORS configuration is required in the normal Dokploy deployment.
+Because the editor is served by the same FastAPI container, no CORS configuration is required 

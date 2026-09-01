@@ -7,3 +7,7 @@ opencv-python-headless>=4.11,<5
 PyYAML>=6,<7
 huggingface-hub>=0.34,<1
 ultralytics>=8.4.43,<9
+# Required at image build time for the Inkwell ONNX checkpoint.  Without these,
+# Ultralytics attempts an on-demand user install when the model is first used.
+onnx>=1.16,<2
+onnxruntime>=1.18,<2

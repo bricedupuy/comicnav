@@ -3,7 +3,10 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HOME=/models/huggingface
+    HF_HOME=/models/huggingface \
+    HOME=/app \
+    PYTHONUSERBASE=/models/python \
+    XDG_CACHE_HOME=/models/.cache
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 curl \
@@ -17,7 +20,8 @@ COPY models.yaml ./models.yaml
 COPY app ./app
 COPY web ./web
 
-RUN mkdir -p /models && chown -R 10001:10001 /models /app
+RUN mkdir -p /models/python /models/.cache \
+    && chown -R 10001:10001 /models /app
 USER 10001
 
 EXPOSE 8000
