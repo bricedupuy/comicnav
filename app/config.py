@@ -22,7 +22,7 @@ class ModelSpec(BaseModel):
 
 class Settings(BaseModel):
     model_cache_dir: Path = Path(os.getenv("MODEL_CACHE_DIR", "/models"))
-    model_config: Path = Path(os.getenv("MODEL_CONFIG", "/app/models.yaml"))
+    model_config_path: Path = Path(os.getenv("MODEL_CONFIG", "/app/models.yaml"))
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "20"))
     max_image_pixels: int = int(os.getenv("MAX_IMAGE_PIXELS", "60000000"))
     default_model: str = os.getenv("DEFAULT_MODEL", "moses-yolov12x")
@@ -36,6 +36,6 @@ settings = Settings()
 
 
 def load_model_specs() -> dict[str, ModelSpec]:
-    with settings.model_config.open("r", encoding="utf-8") as fh:
+    with settings.model_config_path.open("r", encoding="utf-8") as fh:
         raw = yaml.safe_load(fh) or {}
     return {name: ModelSpec(**spec) for name, spec in raw.get("models", {}).items()}
