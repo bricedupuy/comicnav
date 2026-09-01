@@ -1,0 +1,44 @@
+models:
+  moses-yolov12x:
+    title: Moses YOLOv12x Comic Panel Detection
+    repo_id: mosesb/best-comic-panel-detection
+    filename: best.pt
+    task: detect
+    panel_classes: ["Comic Panel", "comic panel", "panel"]
+    imgsz: 640
+    default_confidence: 0.25
+    license: Apache-2.0 (model repository; verify dataset/upstream terms)
+    notes: Strong general comic bbox detector; no polygon masks.
+
+  inkwell-yolov8n:
+    title: Inkwell Comic Panel Detector
+    repo_id: cedarrapidsboy/inkwell-panel-models
+    filename: best.onnx
+    task: detect
+    panel_classes: ["panel"]
+    imgsz: 640
+    default_confidence: 0.25
+    license: AGPL-3.0 for detector; see model card
+    notes: Small mixed-comics detector; bbox only.
+
+  shadowb-yolo26s-seg:
+    title: ShadowB Manga109 YOLO26s Panel Segmentation
+    repo_id: ShadowB/Manga109-panel-balloon-text-yolov26-segmentation
+    filename: best.pt
+    task: segment
+    panel_classes: ["frame"]
+    imgsz: 1024
+    default_confidence: 0.25
+    license: MIT for repository; verify dataset/upstream terms
+    notes: Instance segmentation; useful for Readium points=percent polygons.
+
+  manga-yolo11m-seg:
+    title: Manga Page Element YOLO11m Segmentation
+    repo_id: anonimkaq4/manga-page-element-segmentation
+    filename: snapshots/yolo11m_1024_synthetic_mangaseg/best.pt
+    task: segment
+    panel_classes: ["frame"]
+    imgsz: 1024
+    default_confidence: 0.25
+    license: Other; review MangaSeg/Manga109-s/Ultralytics terms
+    notes: Instance segmentation; frame masks plus other page elements.

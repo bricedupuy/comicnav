@@ -1,0 +1,28 @@
+services:
+  comicnav:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-moses-yolov12x}
+      DEVICE: ${DEVICE:-cpu}
+      MODEL_CACHE_DIR: /models
+      MODEL_CONFIG: /app/models.yaml
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+      MAX_IMAGE_PIXELS: ${MAX_IMAGE_PIXELS:-60000000}
+      POLYGON_EPSILON: ${POLYGON_EPSILON:-0.008}
+      RECTANGLE_FILL_THRESHOLD: ${RECTANGLE_FILL_THRESHOLD:-0.965}
+      PERCENT_DECIMALS: ${PERCENT_DECIMALS:-3}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - comicnav-model-cache:/models
+    ports:
+      - "${API_PORT:-8000}:8000"
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-8G}
+
+volumes:
+  comicnav-model-cache:
