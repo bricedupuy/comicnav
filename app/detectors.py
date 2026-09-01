@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
+from time import perf_counter
 
 import numpy as np
 from huggingface_hub import hf_hub_download
@@ -35,16 +36,36 @@ class ModelManager:
         )
         return Path(path)
 
-    def get(self, name: str) -> YOLO:
+    def _get_with_timings(self, name: str) -> tuple[YOLO, dict[str, float]]:
         if name not in self.specs:
             raise KeyError(name)
-        if name in self.models:
-            return self.models[name]
+
+        model = self.models.get(name)
+        if model is not None:
+            return model, {"model_download": 0.0, "model_initialize": 0.0}
+
         with self._lock:
-            if name not in self.models:
+            model = self.models.get(name)
+            if model is None:
+                download_started = perf_counter()
                 checkpoint = self._download(self.specs[name])
-                self.models[name] = YOLO(str(checkpoint), task=self.specs[name].task)
-        return self.models[name]
+                download_ms = (perf_counter() - download_started) * 1000
+                initialize_started = perf_counter()
+                model = YOLO(str(checkpoint), task=self.specs[name].task)
+                initialize_ms = (perf_counter() - initialize_started) * 1000
+                self.models[name] = model
+                return model, {
+                    "model_download": round(download_ms, 1),
+                    "model_initialize": round(initialize_ms, 1),
+                }
+
+        # Another request loaded this model while this request was waiting for
+        # the load lock. It did not perform a model download or initialization.
+        return model, {"model_download": 0.0, "model_initialize": 0.0}
+
+    def get(self, name: str) -> YOLO:
+        model, _ = self._get_with_timings(name)
+        return model
 
     def unload(self, name: str) -> bool:
         with self._lock:
@@ -52,25 +73,44 @@ class ModelManager:
             self.models.pop(name, None)
             return existed
 
-    def detect(self, name: str, image: Image.Image, confidence: float | None = None) -> list[RawPanel]:
+    def detect(
+        self,
+        name: str,
+        image: Image.Image,
+        confidence: float | None = None,
+        timings_ms: dict[str, float] | None = None,
+    ) -> list[RawPanel]:
         spec = self.specs[name]
-        model = self.get(name)
+        model, model_timings = self._get_with_timings(name)
+        if timings_ms is not None:
+            timings_ms.update(model_timings)
         conf = spec.default_confidence if confidence is None else confidence
 
+        input_prepare_started = perf_counter()
+        source = np.asarray(image.convert("RGB"))
+        if timings_ms is not None:
+            timings_ms["model_input_prepare"] = round((perf_counter() - input_prepare_started) * 1000, 1)
+
+        inference_started = perf_counter()
         result = model.predict(
-            source=np.asarray(image.convert("RGB")),
+            source=source,
             conf=conf,
             imgsz=spec.imgsz,
             device=settings.device,
             verbose=False,
             retina_masks=(spec.task == "segment"),
         )[0]
+        if timings_ms is not None:
+            timings_ms["inference"] = round((perf_counter() - inference_started) * 1000, 1)
 
+        result_processing_started = perf_counter()
         names = result.names
         panel_names = {n.lower() for n in spec.panel_classes}
         output: list[RawPanel] = []
 
         if result.boxes is None:
+            if timings_ms is not None:
+                timings_ms["model_postprocess"] = round((perf_counter() - result_processing_started) * 1000, 1)
             return output
 
         boxes = result.boxes.xyxy.cpu().numpy()
@@ -94,4 +134,6 @@ class ModelManager:
                     polygon=poly,
                 )
             )
+        if timings_ms is not None:
+            timings_ms["model_postprocess"] = round((perf_counter() - result_processing_started) * 1000, 1)
         return output

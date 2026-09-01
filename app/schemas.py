@@ -29,3 +29,4 @@ class AnalyzeResponse(BaseModel):
     model: str
     image: dict
     panels: list[PanelResult]
+    timings_ms: dict[str, float]

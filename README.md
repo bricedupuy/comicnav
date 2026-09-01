@@ -75,7 +75,26 @@ curl -X POST \
   -F 'file=@page.jpg'
 ```
 
-Returns confidence values, pixel geometry, normalized geometry, and computed reading order.
+Returns confidence values, pixel geometry, normalized geometry, computed reading order, and a `timings_ms` object. The same phase timings are written to the application logs, so Dokploy logs can be used to compare requests without storing images.
+
+Example timing data:
+
+```json
+{
+  "upload_read": 2.1,
+  "image_decode": 148.5,
+  "image_convert": 12.2,
+  "model_download": 0.0,
+  "model_initialize": 0.0,
+  "model_input_prepare": 3.8,
+  "inference": 842.7,
+  "model_postprocess": 4.3,
+  "geometry_order": 0.6,
+  "total": 1011.4
+}
+```
+
+`model_download` and `model_initialize` are non-zero only when a model is first loaded into the container process. A downloaded model can still need initialization after a container restart; a warm model reports both as `0.0`.
 
 ## Query parameters
 
@@ -146,4 +165,4 @@ The editor uses the API from the same origin:
 - **Replace existing panels** can be disabled to compare/append detections.
 - Export produces per-page Readium Guided Navigation JSON with `xywh=percent:` and `points=percent:` fragments.
 
-Because the editor is served by the same FastAPI container, no CORS configuration is required 
+Because the editor is served by the same FastAPI container, no CORS configuration is required.

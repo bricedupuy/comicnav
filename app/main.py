@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import io
+import json
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Literal
 
 import numpy as np
@@ -19,6 +22,11 @@ from .geometry import (
 )
 from .ordering import OrderablePanel, reading_order
 from .readium import guided_document
+from .schemas import AnalyzeResponse
+
+# Uvicorn configures this logger at INFO level, so the timing records are
+# visible in container logs without requiring a separate logging setup.
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
     title="ComicNav API",
@@ -35,19 +43,24 @@ def _validate_model(name: str) -> None:
         raise HTTPException(status_code=404, detail=f"Unknown model '{name}'")
 
 
-async def _load_image(file: UploadFile) -> Image.Image:
+async def _load_image(file: UploadFile, timings_ms: dict[str, float]) -> tuple[Image.Image, int]:
     # Do not rely exclusively on multipart Content-Type. Images extracted from
     # CBZ/ZIP archives in browsers can legitimately arrive as
     # application/octet-stream even though their bytes are valid JPEG/PNG/WebP.
+    read_started = perf_counter()
     raw = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
+    timings_ms["upload_read"] = round((perf_counter() - read_started) * 1000, 1)
     if len(raw) > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Image is too large")
 
     try:
+        decode_started = perf_counter()
         image = Image.open(io.BytesIO(raw))
         image.load()
     except (UnidentifiedImageError, OSError) as exc:
         raise HTTPException(status_code=400, detail="Invalid image") from exc
+
+    timings_ms["image_decode"] = round((perf_counter() - decode_started) * 1000, 1)
 
     # Validate the decoded format instead of trusting the browser-supplied MIME.
     # Pillow reports JPEG, PNG or WEBP after inspecting the actual file bytes.
@@ -56,7 +69,11 @@ async def _load_image(file: UploadFile) -> Image.Image:
 
     if image.width * image.height > settings.max_image_pixels:
         raise HTTPException(status_code=413, detail="Image pixel dimensions exceed limit")
-    return image.convert("RGB")
+
+    convert_started = perf_counter()
+    image = image.convert("RGB")
+    timings_ms["image_convert"] = round((perf_counter() - convert_started) * 1000, 1)
+    return image, len(raw)
 
 
 def _analyze(
@@ -65,8 +82,10 @@ def _analyze(
     confidence: float | None,
     reading_direction: str,
     geometry_mode: Literal["auto", "rectangle", "polygon"],
+    timings_ms: dict[str, float] | None = None,
 ) -> dict:
-    raw = manager.detect(model_name, image, confidence)
+    raw = manager.detect(model_name, image, confidence, timings_ms)
+    postprocess_started = perf_counter()
     panels: list[dict] = []
 
     for idx, p in enumerate(raw):
@@ -115,11 +134,40 @@ def _analyze(
         panel.pop("_source_index", None)
         panel["order"] = n
 
+    if timings_ms is not None:
+        timings_ms["geometry_order"] = round((perf_counter() - postprocess_started) * 1000, 1)
+
     return {
         "model": model_name,
         "image": {"width": image.width, "height": image.height},
         "panels": ordered,
     }
+
+
+async def _timed_analysis(
+    file: UploadFile,
+    model: str,
+    confidence: float | None,
+    reading_direction: str,
+    geometry: Literal["auto", "rectangle", "polygon"],
+) -> dict:
+    request_started = perf_counter()
+    timings_ms: dict[str, float] = {}
+    image, file_bytes = await _load_image(file, timings_ms)
+    analysis = _analyze(image, model, confidence, reading_direction, geometry, timings_ms)
+    timings_ms["total"] = round((perf_counter() - request_started) * 1000, 1)
+
+    logger.info(
+        "analysis_complete model=%s image=%sx%s bytes=%s panels=%s timings_ms=%s",
+        model,
+        image.width,
+        image.height,
+        file_bytes,
+        len(analysis["panels"]),
+        json.dumps(timings_ms, separators=(",", ":"), sort_keys=True),
+    )
+    analysis["timings_ms"] = timings_ms
+    return analysis
 
 
 @app.get("/", include_in_schema=False)
@@ -164,7 +212,7 @@ def unload_model(model_name: str) -> dict:
     return {"model": model_name, "unloaded": manager.unload(model_name)}
 
 
-@app.post("/v1/analyze")
+@app.post("/v1/analyze", response_model=AnalyzeResponse)
 async def analyze(
     file: UploadFile = File(...),
     model: str = Query(default=settings.default_model),
@@ -173,8 +221,7 @@ async def analyze(
     geometry: Literal["auto", "rectangle", "polygon"] = Query(default="auto"),
 ) -> dict:
     _validate_model(model)
-    image = await _load_image(file)
-    return _analyze(image, model, confidence, reading_direction, geometry)
+    return await _timed_analysis(file, model, confidence, reading_direction, geometry)
 
 
 @app.post("/v1/guided-navigation")
@@ -188,8 +235,7 @@ async def create_guided_navigation(
     self_href: str | None = Query(default=None),
 ) -> Response:
     _validate_model(model)
-    image = await _load_image(file)
-    analysis = _analyze(image, model, confidence, reading_direction, geometry)
+    analysis = await _timed_analysis(file, model, confidence, reading_direction, geometry)
 
     filename = file.filename or "page.jpg"
     resolved_image_href = image_href or filename
