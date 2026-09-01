@@ -36,10 +36,9 @@ def _validate_model(name: str) -> None:
 
 
 async def _load_image(file: UploadFile) -> Image.Image:
-    allowed = {"image/jpeg", "image/png", "image/webp"}
-    if file.content_type not in allowed:
-        raise HTTPException(status_code=415, detail="Only JPEG, PNG and WebP are accepted")
-
+    # Do not rely exclusively on multipart Content-Type. Images extracted from
+    # CBZ/ZIP archives in browsers can legitimately arrive as
+    # application/octet-stream even though their bytes are valid JPEG/PNG/WebP.
     raw = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
     if len(raw) > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Image is too large")
@@ -49,6 +48,11 @@ async def _load_image(file: UploadFile) -> Image.Image:
         image.load()
     except (UnidentifiedImageError, OSError) as exc:
         raise HTTPException(status_code=400, detail="Invalid image") from exc
+
+    # Validate the decoded format instead of trusting the browser-supplied MIME.
+    # Pillow reports JPEG, PNG or WEBP after inspecting the actual file bytes.
+    if (image.format or "").upper() not in {"JPEG", "PNG", "WEBP"}:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG and WebP are accepted")
 
     if image.width * image.height > settings.max_image_pixels:
         raise HTTPException(status_code=413, detail="Image pixel dimensions exceed limit")
