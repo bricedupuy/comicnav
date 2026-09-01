@@ -62,6 +62,7 @@
     <div class="spacer"></div>
     <div class="previewControls">
       <label class="previewControl"><input id="previewSpread" type="checkbox"> Two-page spread</label>
+      <label class="previewControl"><input id="previewAnimationEnabled" type="checkbox" checked> Animate transitions</label>
       <label class="previewControl">Outside panel
         <select class="field previewSelect" id="previewOverlayMode">
           <option value="normal">Normal</option>
@@ -86,12 +87,13 @@
       <label class="previewRange">Dark <input id="previewDarkOpacity" type="range" min="0" max="100" step="1" value="74"><output id="previewDarkOpacityValue">74%</output></label>
       <label class="previewRange">Faded <input id="previewFadedOpacity" type="range" min="0" max="100" step="1" value="58"><output id="previewFadedOpacityValue">58%</output></label>
       <label class="previewRange">B&amp;W <input id="previewBwOpacity" type="range" min="0" max="100" step="1" value="100"><output id="previewBwOpacityValue">100%</output></label>
+      <label class="previewRange">Animation <input id="previewAnimationDuration" type="range" min="100" max="2000" step="50" value="500"><output id="previewAnimationDurationValue">500ms</output></label>
     </div>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);const svg=$('svg');let pages=[],current=-1,selected=-1,direction='ltr',showArrows=false,addMode=false,drag=null,models={},previewMode=false,previewPanelIdx=-1,previewOverviewStage='start',previewOverlayMode='dark',previewFillBackground=false,previewSpread=false,previewSpreadGap=0,previewDarkOpacity=.74,previewFadedOpacity=.58,previewBwOpacity=1,previewAdvancedOpen=false,rowDragIdx=null,hoveredPanel=-1,previewTransform='translate(0,0) scale(1)',previewPage=-1;
+const $=id=>document.getElementById(id);const svg=$('svg');let pages=[],current=-1,selected=-1,direction='ltr',showArrows=false,addMode=false,drag=null,models={},previewMode=false,previewPanelIdx=-1,previewOverviewStage='start',previewOverlayMode='dark',previewFillBackground=false,previewSpread=false,previewSpreadGap=0,previewDarkOpacity=.74,previewFadedOpacity=.58,previewBwOpacity=1,previewAnimationEnabled=true,previewAnimationDuration=500,previewAdvancedOpen=false,rowDragIdx=null,hoveredPanel=-1,previewTransform='translate(0,0) scale(1)',previewCameraKey=null;
 function bbox(pts){const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)}}
 function centroid(pts){return[pts.reduce((s,p)=>s+p[0],0)/pts.length,pts.reduce((s,p)=>s+p[1],0)/pts.length]}
 function rectPoints([x,y,w,h]){return[[x,y],[x+w,y],[x+w,y+h],[x,y+h]]}
@@ -160,19 +162,22 @@ function renderPreviewOverlay(camera,p){
   const faded=previewOverlayMode==='faded';
   addSvg('rect',{x:0,y:0,width:p.w,height:p.h,fill:faded?'#eee9df':'black','fill-opacity':(faded?previewFadedOpacity:previewDarkOpacity),mask:'url(#previewOutsideMask)','pointer-events':'none'},camera);
 }
+function applyPreviewTransform(camera,target,key){
+  if(previewCameraKey!==key){previewTransform='translate(0,0) scale(1)';previewCameraKey=key}
+  camera.setAttribute('transform',target);
+  if(previewAnimationEnabled&&previewTransform!==target&&camera.animate)camera.animate([{transform:previewTransform},{transform:target}],{duration:previewAnimationDuration,easing:'cubic-bezier(.22,.9,.32,1)',fill:'both'}).onfinish=()=>camera.setAttribute('transform',target);
+  previewTransform=target;
+}
 function applyPreviewCamera(camera,p){
-  if(previewPage!==current){previewTransform='translate(0,0) scale(1)';previewPage=current}
   let target='translate(0,0) scale(1)';
   if(previewPanelIdx!==-1&&p.panels[previewPanelIdx]){
     const b=bbox(p.panels[previewPanelIdx].points),pad=1.12,scale=Math.min(p.w/(b.w*pad),p.h/(b.h*pad)),cx=b.x+b.w/2,cy=b.y+b.h/2,tx=p.w/2-cx*scale,ty=p.h/2-cy*scale;
     target=`translate(${tx},${ty}) scale(${scale})`;
   }
-  camera.setAttribute('transform',target);
-  if(previewTransform!==target&&camera.animate){camera.animate([{transform:previewTransform},{transform:target}],{duration:500,easing:'cubic-bezier(.22,.9,.32,1)',fill:'both'}).onfinish=()=>camera.setAttribute('transform',target)}
-  previewTransform=target;
+  applyPreviewTransform(camera,target,`page:${current}`);
 }
 function setPreview(on){
-  if(on&&!pages.length)return;previewMode=on;previewPanelIdx=-1;previewOverviewStage='start';selected=-1;addMode=false;previewTransform='translate(0,0) scale(1)';previewPage=current;$('addRectBtn').classList.remove('active');svg.style.cursor='';$('app').classList.toggle('previewing',on);$('previewBtn').classList.toggle('active',on);render();
+  if(on&&!pages.length)return;previewMode=on;previewPanelIdx=-1;previewOverviewStage='start';selected=-1;addMode=false;previewTransform='translate(0,0) scale(1)';previewCameraKey=null;$('addRectBtn').classList.remove('active');svg.style.cursor='';$('app').classList.toggle('previewing',on);$('previewBtn').classList.toggle('active',on);render();
 }
 $('previewBtn').onclick=()=>setPreview(!previewMode);$('prevExitBtn').onclick=()=>setPreview(false);
 function movePreviewPage(delta){
@@ -227,11 +232,13 @@ $('prevPanelNextBtn').onclick=()=>stepPreview(1);
 $('previewOverlayMode').onchange=e=>{previewOverlayMode=e.target.value;render()};
 $('previewBackgroundFill').onchange=e=>{previewFillBackground=e.target.checked;render()};
 $('previewSpread').onchange=e=>{previewSpread=e.target.checked;previewPanelIdx=-1;previewOverviewStage='start';render()};
+$('previewAnimationEnabled').onchange=e=>{previewAnimationEnabled=e.target.checked};
 function updatePreviewAdvancedValues(){
   $('previewSpreadGapValue').textContent=`${previewSpreadGap}%`;
   $('previewDarkOpacityValue').textContent=`${Math.round(previewDarkOpacity*100)}%`;
   $('previewFadedOpacityValue').textContent=`${Math.round(previewFadedOpacity*100)}%`;
   $('previewBwOpacityValue').textContent=`${Math.round(previewBwOpacity*100)}%`;
+  $('previewAnimationDurationValue').textContent=`${previewAnimationDuration}ms`;
 }
 function bindPreviewRange(inputId,apply){
   $(inputId).oninput=e=>{apply(Number(e.target.value));updatePreviewAdvancedValues();render()};
@@ -241,6 +248,7 @@ bindPreviewRange('previewSpreadGap',value=>previewSpreadGap=value);
 bindPreviewRange('previewDarkOpacity',value=>previewDarkOpacity=value/100);
 bindPreviewRange('previewFadedOpacity',value=>previewFadedOpacity=value/100);
 bindPreviewRange('previewBwOpacity',value=>previewBwOpacity=value/100);
+bindPreviewRange('previewAnimationDuration',value=>previewAnimationDuration=value);
 updatePreviewAdvancedValues();
 
 function updatePreviewCanvas(p){
@@ -262,6 +270,22 @@ function spreadLayout(){
   return{width:leftWidth+gap+rightWidth,height,entries:[{page:left,x:0,y:(height-left.h*leftScale)/2,w:leftWidth,h:left.h*leftScale},{page:right,x:leftWidth+gap,y:(height-right.h*rightScale)/2,w:rightWidth,h:right.h*rightScale}]};
 }
 function spreadPanelPoints(entry,panel){const scaleX=entry.w/entry.page.w,scaleY=entry.h/entry.page.h;return panel.points.map(([x,y])=>[entry.x+x*scaleX,entry.y+y*scaleY])}
+function startPreviewAtPanel(pageIndex,panelIndex){
+  current=pageIndex;
+  previewPanelIdx=panelIndex;
+  previewOverviewStage='start';
+  render();
+}
+function renderPreviewPanelTargets(camera,entries){
+  if(previewPanelIdx!==-1)return;
+  entries.forEach(entry=>entry.page.panels.forEach((panel,index)=>{
+    const target=addSvg('polygon',{points:spreadPanelPoints(entry,panel).map(point=>point.join(',')).join(' '),fill:'rgba(200,56,44,.001)',stroke:'rgba(200,56,44,0)','stroke-width':Math.max(2,Math.min(entry.w,entry.h)*.002),'pointer-events':'all'},camera);
+    target.style.cursor='pointer';
+    target.onpointerenter=()=>{target.setAttribute('fill','rgba(200,56,44,.14)');target.setAttribute('stroke','rgba(238,233,223,.9)')};
+    target.onpointerleave=()=>{target.setAttribute('fill','rgba(200,56,44,.001)');target.setAttribute('stroke','rgba(200,56,44,0)')};
+    target.onclick=e=>{e.stopPropagation();startPreviewAtPanel(pages.indexOf(entry.page),index)};
+  }));
+}
 function renderSpreadPreviewOverlay(camera,layout,entry){
   const panel=entry.page.panels[previewPanelIdx];
   if(!panel)return;
@@ -280,11 +304,8 @@ function renderSpreadPreviewOverlay(camera,layout,entry){
   addSvg('rect',{x:0,y:0,width:layout.width,height:layout.height,fill:faded?'#eee9df':'black','fill-opacity':(faded?previewFadedOpacity:previewDarkOpacity),mask:'url(#spreadPreviewOutsideMask)','pointer-events':'none'},camera);
 }
 function applySpreadPreviewCamera(camera,layout,entry){
-  if(previewPage!==current){previewTransform='translate(0,0) scale(1)';previewPage=current}
   const panel=entry.page.panels[previewPanelIdx],b=bbox(spreadPanelPoints(entry,panel)),pad=1.12,scale=Math.min(layout.width/(b.w*pad),layout.height/(b.h*pad)),cx=b.x+b.w/2,cy=b.y+b.h/2,target=`translate(${layout.width/2-cx*scale},${layout.height/2-cy*scale}) scale(${scale})`;
-  camera.setAttribute('transform',target);
-  if(previewTransform!==target&&camera.animate)camera.animate([{transform:previewTransform},{transform:target}],{duration:500,easing:'cubic-bezier(.22,.9,.32,1)',fill:'both'}).onfinish=()=>camera.setAttribute('transform',target);
-  previewTransform=target;
+  applyPreviewTransform(camera,target,`spread:${spreadPageIndexes().join(',')}`);
 }
 function renderSpreadPreview(){
   const layout=spreadLayout();
@@ -293,14 +314,24 @@ function renderSpreadPreview(){
   svg.innerHTML='';
   const camera=addSvg('g',{class:'cameraGroup'});
   layout.entries.forEach(entry=>addSvg('image',{href:entry.page.src,x:entry.x,y:entry.y,width:entry.w,height:entry.h},camera));
+  if(previewPanelIdx===-1)renderPreviewPanelTargets(camera,layout.entries);
   const activeEntry=layout.entries.find(entry=>entry.page===pages[current]);
-  if(previewPanelIdx!==-1&&activeEntry){renderSpreadPreviewOverlay(camera,layout,activeEntry);applySpreadPreviewCamera(camera,layout,activeEntry)}else{previewTransform='translate(0,0) scale(1)';previewPage=current}
+  if(previewPanelIdx!==-1&&activeEntry){renderSpreadPreviewOverlay(camera,layout,activeEntry);applySpreadPreviewCamera(camera,layout,activeEntry)}else applyPreviewTransform(camera,'translate(0,0) scale(1)',`spread:${spreadPageIndexes().join(',')}`);
   updatePreviewLabels(pages[current]);
+  return true;
 }
 const renderBase=render;
 render=function(){
+  const spreadCameraState=previewMode&&previewSpread&&pages[current]?{key:previewCameraKey,transform:previewTransform}:null;
   renderBase();
-  if(previewMode&&previewSpread&&pages[current])renderSpreadPreview();
+  if(!previewMode||!pages[current])return;
+  if(previewSpread){
+    const previousCameraKey=previewCameraKey,previousTransform=previewTransform;
+    if(spreadCameraState){previewCameraKey=spreadCameraState.key;previewTransform=spreadCameraState.transform}
+    if(renderSpreadPreview())return;
+    previewCameraKey=previousCameraKey;previewTransform=previousTransform;
+  }
+  if(previewPanelIdx===-1){const page=pages[current],camera=svg.querySelector('.cameraGroup');if(camera)renderPreviewPanelTargets(camera,[{page,x:0,y:0,w:page.w,h:page.h}])}
 };
 svg.onpointermove=e=>{if(!drag||drag.id!==e.pointerId)return;const p=pages[current],q=toImg(e),pan=p.panels[drag.i];if(drag.type==='move'){const dx=q.x-drag.start[0],dy=q.y-drag.start[1];pan.points=drag.orig.map(([x,y])=>[clamp(x+dx,0,p.w),clamp(y+dy,0,p.h)])}else if(drag.type==='vertex'){pan.points[drag.vi]=[clamp(q.x,0,p.w),clamp(q.y,0,p.h)]}else if(drag.type==='rect'){let{x,y,w,h}=drag.orig,x2=x+w,y2=y+h;if(drag.corner.includes('n'))y=clamp(q.y,0,p.h);if(drag.corner.includes('s'))y2=clamp(q.y,0,p.h);if(drag.corner.includes('w'))x=clamp(q.x,0,p.w);if(drag.corner.includes('e'))x2=clamp(q.x,0,p.w);const nx=Math.min(x,x2),ny=Math.min(y,y2),nw=Math.abs(x2-x),nh=Math.abs(y2-y);pan.points=rectPoints([nx,ny,nw,nh])}render()};svg.onpointerup=e=>{if(drag?.id===e.pointerId)drag=null};
 svg.onpointerdown=e=>{if(addMode){const p=pages[current],q=toImg(e);drag={type:'add',id:e.pointerId,start:[q.x,q.y],i:-1};p.panels.push({points:rectPoints([q.x,q.y,1,1])});drag.i=p.panels.length-1;selected=drag.i;svg.setPointerCapture(e.pointerId);render()}else if(e.target===svg){selected=-1;render()}};
