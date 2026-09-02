@@ -129,7 +129,7 @@ $('modelSelect').onchange=updateModelMeta;
 function updateButtons(){const has=current>=0&&pages[current];['addRectBtn','sortBtn','arrowsBtn','exportPageBtn','detectBtn'].forEach(id=>$(id).disabled=!has);$('detectAllBtn').disabled=!pages.length;$('exportAllBtn').disabled=!pages.length;$('previewBtn').disabled=!pages.length}
 function selectPage(index){if(index<0||index>=pages.length||index===current)return;current=index;selected=-1;render()}
 function movePage(delta){if(!pages.length)return;selectPage(clamp((current<0?0:current)+delta,0,pages.length-1))}
-function renderThumbs(){const list=$('thumbList');list.innerHTML='';let activeThumb=null;pages.forEach((p,i)=>{const d=document.createElement('button'),width=clamp(Math.round(92*p.w/p.h),64,156);d.type='button';d.className='thumb'+(i===current?' active':'');d.style.width=`${width}px`;d.setAttribute('aria-label',`Page ${i+1}: ${p.filename}`);d.setAttribute('aria-current',i===current?'page':'false');d.innerHTML=`<img src="${p.src}" alt=""><span class="badge page">${i+1}</span><span class="badge count">${p.panels.length}</span>`;d.onclick=()=>selectPage(i);if(i===current)activeThumb=d;list.appendChild(d)});if(!pages.length){lastThumbPage=-1;return}if(activeThumb&&current!==lastThumbPage){lastThumbPage=current;requestAnimationFrame(()=>activeThumb.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'}))}}
+function renderThumbs(){const list=$('thumbList'),needsBuild=list.children.length!==pages.length;if(needsBuild){list.innerHTML='';pages.forEach((p,i)=>{const d=document.createElement('button'),width=clamp(Math.round(92*p.w/p.h),64,156);d.type='button';d.className='thumb';d.dataset.page=String(i);d.style.width=`${width}px`;d.setAttribute('aria-label',`Page ${i+1}: ${p.filename}`);d.innerHTML=`<img src="${p.src}" alt=""><span class="badge page">${i+1}</span><span class="badge count"></span>`;d.onclick=()=>selectPage(i);list.appendChild(d)})}if(!pages.length){lastThumbPage=-1;return}const thumbs=[...list.children];thumbs.forEach((thumb,i)=>{const active=i===current;thumb.classList.toggle('active',active);thumb.setAttribute('aria-current',active?'page':'false');thumb.querySelector('.badge.count').textContent=pages[i].panels.length});const activeThumb=thumbs[current];if(activeThumb&&current!==lastThumbPage){lastThumbPage=current;requestAnimationFrame(()=>activeThumb.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'}))}}
 function autoSort(){const p=pages[current];if(!p)return;const items=p.panels.map(x=>({p:x,b:bbox(x.points)})).sort((a,b)=>a.b.y-b.b.y);const rows=[];for(const it of items){const cy=it.b.y+it.b.h/2;let r=rows.find(r=>cy>=r.y0&&cy<=r.y1);if(!r){r={y0:it.b.y,y1:it.b.y+it.b.h,items:[]};rows.push(r)}r.items.push(it);r.y0=Math.min(r.y0,it.b.y);r.y1=Math.max(r.y1,it.b.y+it.b.h)}rows.sort((a,b)=>a.y0-b.y0);p.panels=rows.flatMap(r=>r.items.sort((a,b)=>direction==='rtl'?b.b.x-a.b.x:a.b.x-b.b.x).map(i=>i.p));selected=-1;render()}
 function renderPanelList(){const p=pages[current];$('panelList').innerHTML='';$('panelCount').textContent=p?`(${p.panels.length})`:'';if(!p)return;p.panels.forEach((x,i)=>{const r=document.createElement('div');r.className='panelRow'+(i===selected?' selected':'');r.draggable=true;r.innerHTML=`<span class="grip" title="Drag to reorder">⋮⋮</span><span class="num">${i+1}</span><span class="shape">${isRect(x.points)?'rect':x.points.length+'-gon'}</span><span class="confidence">${x.confidence?Math.round(x.confidence*100)+'%':''}</span><span class="spacer"></span><button class="rowbtn" data-a="up">↑</button><button class="rowbtn" data-a="down">↓</button><button class="rowbtn danger" data-a="del">×</button>`;r.onclick=e=>{if(!e.target.closest('button')){selected=i;render()}};r.querySelector('[data-a=up]').onclick=e=>{e.stopPropagation();move(i,-1)};r.querySelector('[data-a=down]').onclick=e=>{e.stopPropagation();move(i,1)};r.querySelector('[data-a=del]').onclick=e=>{e.stopPropagation();p.panels.splice(i,1);selected=-1;render()};r.ondragstart=e=>{rowDragIdx=i;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(i));r.classList.add('dragging')};r.ondragend=()=>{rowDragIdx=null;$('panelList').querySelectorAll('.panelRow').forEach(x=>x.classList.remove('dragging','dragover'))};r.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='move';r.classList.add('dragover')};r.ondragleave=()=>r.classList.remove('dragover');r.ondrop=e=>{e.preventDefault();r.classList.remove('dragover');const from=rowDragIdx!==null?rowDragIdx:Number(e.dataTransfer.getData('text/plain'));if(Number.isNaN(from)||from===i)return;reorderPanel(from,i)};$('panelList').appendChild(r)})}
 function move(i,d){const p=pages[current],j=i+d;if(j<0||j>=p.panels.length)return;[p.panels[i],p.panels[j]]=[p.panels[j],p.panels[i]];selected=j;render()}function reorderPanel(from,to){const p=pages[current],[item]=p.panels.splice(from,1);p.panels.splice(to,0,item);if(selected===from)selected=to;else if(from<selected&&to>=selected)selected--;else if(from>selected&&to<=selected)selected++;render()}
@@ -242,12 +242,18 @@ function movePreviewReadingPage(delta){
   previewOverviewStage='start';
   render();
 }
+function panelPageInCurrentSpread(delta){
+  if(!previewSpread)return null;
+  const indexes=spreadPageIndexes(),position=indexes.indexOf(current);
+  for(let cursor=position+delta;cursor>=0&&cursor<indexes.length;cursor+=delta){if(pages[indexes[cursor]].panels.length)return indexes[cursor]}
+  return null;
+}
 function stepPreview(delta){
   const p=pages[current];
   if(!p||!pages.length)return;
   if(delta>0){
     if(previewPanelIdx===-1){
-      if(previewOverviewStage==='end'||!p.panels.length){movePreviewReadingPage(1);return}
+      if(previewOverviewStage==='end'||!p.panels.length){const nextInSpread=panelPageInCurrentSpread(1);if(nextInSpread!==null){current=nextInSpread;previewPanelIdx=0;previewOverviewStage='start'}else{movePreviewReadingPage(1);return}}
       previewPanelIdx=0;
     }else if(previewPanelIdx<p.panels.length-1){
       previewPanelIdx++;
@@ -263,9 +269,8 @@ function stepPreview(delta){
   }else if(previewOverviewStage==='end'&&p.panels.length){
     previewPanelIdx=p.panels.length-1;
   }else{
-    current=(current-1+pages.length)%pages.length;
-    previewPanelIdx=-1;
-    previewOverviewStage='end';
+    const previousInSpread=panelPageInCurrentSpread(-1);
+    if(previousInSpread!==null){current=previousInSpread;previewPanelIdx=pages[previousInSpread].panels.length-1;previewOverviewStage='end'}else{current=(current-1+pages.length)%pages.length;previewPanelIdx=-1;previewOverviewStage='end'}
   }
   render();
 }
@@ -355,7 +360,7 @@ function renderSpreadPreview(){
   const layout=spreadLayout();
   if(!layout)return;
   svg.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
-  svg.innerHTML='';
+  svg.innerHTML='';svg._previewScene=null;
   const camera=addSvg('g',{class:'cameraGroup'});
   layout.entries.forEach(entry=>addSvg('image',{href:entry.page.src,x:entry.x,y:entry.y,width:entry.w,height:entry.h},camera));
   if(previewPanelIdx===-1)renderPreviewPanelTargets(camera,layout.entries);
@@ -365,7 +370,22 @@ function renderSpreadPreview(){
   return true;
 }
 const renderBase=render;
+function renderCachedPreview(){
+  updateButtons();renderThumbs();const p=pages[current];updatePreviewCanvas(p);$('empty').style.display=p?'none':'block';svg.style.display=p?'block':'none';if(!p)return;
+  svg.setAttribute('viewBox',`0 0 ${p.w} ${p.h}`);
+  let scene=svg._previewScene;
+  if(!scene||scene.page!==p||!scene.camera.isConnected){
+    svg.innerHTML='';
+    const camera=addSvg('g',{class:'cameraGroup'}),pageLayer=addSvg('g',{class:'previewPageLayer'},camera),overlayLayer=addSvg('g',{class:'previewOverlayLayer'},camera),targetLayer=addSvg('g',{class:'previewTargetLayer'},camera);
+    addSvg('image',{href:p.src,x:0,y:0,width:p.w,height:p.h},pageLayer);
+    scene={page:p,camera,overlayLayer,targetLayer};svg._previewScene=scene;
+  }
+  scene.overlayLayer.replaceChildren();scene.targetLayer.replaceChildren();
+  if(previewPanelIdx!==-1)renderPreviewOverlay(scene.overlayLayer,p);else renderPreviewPanelTargets(scene.targetLayer,[{page:p,x:0,y:0,w:p.w,h:p.h}]);
+  applyPreviewCamera(scene.camera,p);updatePreviewLabels(p);
+}
 render=function(){
+  if(previewMode&&!previewSpread){renderCachedPreview();return}
   const spreadCameraState=previewMode&&previewSpread&&pages[current]?{key:previewCameraKey,transform:previewTransform}:null;
   renderBase();
   if(!previewMode||!pages[current])return;
