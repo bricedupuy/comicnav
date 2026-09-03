@@ -20,6 +20,13 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
+The Compose stack now includes PostgreSQL and durable Docker volumes for both
+project page media and the database. `POSTGRES_PASSWORD` is required: set it
+to a long random secret in Dokploy (or in `.env` locally) before starting the
+stack. The supplied `.env.example` documents the available settings.
+`DATABASE_URL` is optional: leave it blank to use the local Compose database,
+or set it to use a managed PostgreSQL instance.
+
 Open API docs:
 
 ```text
@@ -166,3 +173,29 @@ The editor uses the API from the same origin:
 - Export produces per-page Readium Guided Navigation JSON with `xywh=percent:` and `points=percent:` fragments.
 
 Because the editor is served by the same FastAPI container, no CORS configuration is required.
+
+## Saved projects and guide versions
+
+The editor's top bar has a **Projects** selector, **Save project**, and
+**Publish guide** controls. A saved project keeps its original page images,
+page dimensions/background/spread state, panel geometry, review status, and
+model provenance in PostgreSQL. Re-opening it restores the editor state from
+the server rather than from browser memory.
+
+Publishing creates an immutable Readium guide-version document from the saved
+draft. Creating another version never changes the previous one.
+
+The initial private API surface is intentionally small and unauthenticated:
+
+- `POST` / `GET /v1/projects` create and list projects.
+- `GET` / `PUT /v1/projects/{project_id}` load and save an editor draft.
+- `POST /v1/projects/{project_id}/pages` uploads one JPEG, PNG, or WebP page.
+- `POST /v1/projects/{project_id}/guide-versions` publishes an immutable guide.
+- `GET /v1/projects/{project_id}/guide-versions/{version}` fetches a published guide.
+
+Page media currently uses the durable `/data` Docker volume behind a small
+storage adapter. This is deliberately a private editor persistence layer, not
+the future object-storage/archive pipeline described in `PLAN.md`. The next
+platform increment replaces this adapter with private S3-compatible storage,
+adds migrations, and introduces user/organization isolation before these write
+routes are exposed beyond a trusted deployment.

@@ -3,9 +3,18 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Literal
+from urllib.parse import quote
 
 import yaml
 from pydantic import BaseModel, Field
+
+
+def _default_database_url() -> str:
+    """Build the Compose PostgreSQL URL without requiring URL-safe secrets."""
+    user = quote(os.getenv("POSTGRES_USER", "comicnav"), safe="")
+    password = quote(os.getenv("POSTGRES_PASSWORD", "comicnav"), safe="")
+    database = quote(os.getenv("POSTGRES_DB", "comicnav"), safe="")
+    return f"postgresql+asyncpg://{user}:{password}@postgres:5432/{database}"
 
 
 class ModelSpec(BaseModel):
@@ -30,6 +39,8 @@ class Settings(BaseModel):
     polygon_epsilon: float = float(os.getenv("POLYGON_EPSILON", "0.008"))
     rectangle_fill_threshold: float = float(os.getenv("RECTANGLE_FILL_THRESHOLD", "0.965"))
     percent_decimals: int = int(os.getenv("PERCENT_DECIMALS", "3"))
+    database_url: str = os.getenv("DATABASE_URL") or _default_database_url()
+    media_dir: Path = Path(os.getenv("MEDIA_DIR", "/data/media"))
 
 
 settings = Settings()

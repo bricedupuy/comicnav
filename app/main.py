@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from time import perf_counter
 from typing import Literal
@@ -13,6 +14,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from PIL import Image, UnidentifiedImageError
 
 from .config import load_model_specs, settings
+from .database import close_database, init_database
 from .detectors import ModelManager
 from .geometry import (
     bbox_percent,
@@ -22,20 +24,32 @@ from .geometry import (
 )
 from .ordering import OrderablePanel, reading_order
 from .readium import guided_document
+from .projects import router as project_router
 from .schemas import AnalyzeResponse
 
 # Uvicorn configures this logger at INFO level, so the timing records are
 # visible in container logs without requiring a separate logging setup.
 logger = logging.getLogger("uvicorn.error")
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await init_database()
+    try:
+        yield
+    finally:
+        await close_database()
+
+
 app = FastAPI(
     title="ComicNav API",
     version="0.1.0",
     description="Comic panel detection/segmentation with Readium Guided Navigation output.",
+    lifespan=lifespan,
 )
 
 specs = load_model_specs()
 manager = ModelManager(specs)
+app.include_router(project_router)
 
 
 def _validate_model(name: str) -> None:

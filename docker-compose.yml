@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-comicnav}
+      POSTGRES_USER: ${POSTGRES_USER:-comicnav}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_is_required}
+    volumes:
+      - comicnav-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   comicnav:
     build:
       context: .
@@ -15,14 +30,27 @@ services:
       RECTANGLE_FILL_THRESHOLD: ${RECTANGLE_FILL_THRESHOLD:-0.965}
       PERCENT_DECIMALS: ${PERCENT_DECIMALS:-3}
       HF_TOKEN: ${HF_TOKEN:-}
+      # Set DATABASE_URL for a managed PostgreSQL instance. Otherwise the
+      # application builds a URL from these local Compose credentials.
+      DATABASE_URL: ${DATABASE_URL:-}
+      POSTGRES_DB: ${POSTGRES_DB:-comicnav}
+      POSTGRES_USER: ${POSTGRES_USER:-comicnav}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_is_required}
+      MEDIA_DIR: /data/media
     volumes:
       - comicnav-model-cache:/models
+      - comicnav-data:/data
     ports:
       - "${API_PORT:-8000}:8000"
     deploy:
       resources:
         limits:
           memory: ${MEMORY_LIMIT:-8G}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   comicnav-model-cache:
+  comicnav-data:
+  comicnav-postgres:

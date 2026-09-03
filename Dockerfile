@@ -20,8 +20,8 @@ COPY models.yaml ./models.yaml
 COPY app ./app
 COPY web ./web
 
-RUN mkdir -p /models/python /models/.cache \
-    && chown -R 10001:10001 /models /app
+RUN mkdir -p /models/python /models/.cache /data/media \
+    && chown -R 10001:10001 /models /app /data
 USER 10001
 
 EXPOSE 8000
