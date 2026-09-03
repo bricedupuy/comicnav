@@ -19,6 +19,7 @@
 .segtabs{display:flex;gap:3px;background:#26262a;border:1px solid var(--ui-border);border-radius:8px;padding:2px}.segtab{border:0;background:transparent;color:#9a9aa1;font-size:12px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer}.segtab.active{background:var(--accent);color:#fff}.panelHint{padding:10px 12px;border-top:1px solid var(--ui-border);font-size:11px;line-height:1.5;color:#8a8a90}
 .progress{height:3px;background:#252529;overflow:hidden}.progress>div{height:100%;width:0;background:var(--flow);transition:width .15s}.modelMeta{font-size:10px;color:#76767e;line-height:1.35}.checkbox{display:flex;align-items:center;gap:6px;color:#9999a0;font-size:10.5px}
 .previewBar{display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--ui-bg);border-top:1px solid var(--ui-border);flex:0 0 auto}.previewLabel{font-size:12px;color:#c8c8ce;font-variant-numeric:tabular-nums;white-space:nowrap}.previewControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.previewControl{display:flex;align-items:center;gap:6px;color:#a8a8af;font-size:11px;white-space:nowrap}.previewSelect{width:auto;padding:6px 7px}.previewSwatch{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:#151516}.previewAdvanced{display:none;flex-basis:100%;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0 1px;border-top:1px solid var(--ui-border)}.previewAdvanced.open{display:flex}.previewRange{display:flex;align-items:center;gap:6px;color:#a8a8af;font-size:11px;white-space:nowrap}.previewRange input{accent-color:var(--accent);width:88px}.previewRange output{width:34px;color:#dedee4;font-variant-numeric:tabular-nums}.app.previewing .sidebar,.app.previewing .filmstrip{display:none}.app.previewing #editTools{display:none}.app.previewing .previewBar{display:flex}
+.metadataBackdrop{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.66)}.metadataBackdrop[hidden]{display:none}.metadataDialog{width:min(820px,100%);max-height:min(820px,calc(100dvh - 40px));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--ui-border);border-radius:12px;background:var(--ui-bg);box-shadow:0 24px 80px rgba(0,0,0,.45)}.metadataDialog form{display:flex;flex:1;min-height:0;flex-direction:column}.metadataHead,.metadataFoot{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--ui-border)}.metadataHead h2{margin:0;font-size:14px}.metadataHead .spacer{flex:1}.metadataFoot{justify-content:flex-end;border-top:1px solid var(--ui-border);border-bottom:0}.metadataBody{overflow:auto;padding:15px}.metadataSummary{margin:0 0 13px;color:#aaaab1;font-size:12px;line-height:1.45}.metadataGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metadataField{display:flex;flex-direction:column;gap:5px;min-width:0}.metadataField.wide{grid-column:1/-1}.metadataLabel{color:#b9b9c0;font-size:11px;font-weight:700}.metadataSource{color:#777780;font-size:10px}.metadataWarnings{margin-top:13px;padding:10px 11px;border:1px solid rgba(224,164,88,.36);border-radius:8px;background:rgba(224,164,88,.08);color:#e9c27d;font-size:11px;line-height:1.45}.metadataWarnings:empty{display:none}@media(max-width:620px){.metadataGrid{grid-template-columns:1fr}.metadataDialog{max-height:calc(100dvh - 20px)}.metadataBackdrop{padding:10px}}
 </style>
 </head>
 <body>
@@ -28,7 +29,7 @@
     <div class="tools" id="editTools">
       <label class="filebtn">Upload<input type="file" id="uploadInput" accept=".cbz,.zip,image/*" multiple hidden></label>
       <button class="btn" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" disabled>Undo</button><button class="btn" id="redoBtn" title="Redo (Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y)" disabled>Redo</button>
-      <select class="field projectSelect" id="projectSelect" aria-label="Saved projects"><option value="">Projects</option></select><button class="btn" id="saveProjectBtn" disabled>Save project</button><button class="btn" id="publishGuideBtn" disabled>Publish guide</button>
+      <select class="field projectSelect" id="projectSelect" aria-label="Saved projects"><option value="">Projects</option></select><button class="btn" id="metadataBtn" type="button">Metadata</button><button class="btn" id="saveProjectBtn" disabled>Save project</button><button class="btn" id="publishGuideBtn" disabled>Publish guide</button>
     </div>
     <div class="spacer"></div>
     <div class="tools"><button class="btn" id="previewBtn" disabled>▶ Preview</button><button class="btn" id="exportPageBtn" disabled>Export page</button><button class="btn primary" id="exportAllBtn" disabled>Export all</button></div>
@@ -109,6 +110,15 @@
     </div>
   </div>
 </div>
+<div class="metadataBackdrop" id="metadataModal" hidden>
+  <section class="metadataDialog" role="dialog" aria-modal="true" aria-labelledby="metadataTitle">
+    <header class="metadataHead"><h2 id="metadataTitle">Project metadata</h2><span class="spacer"></span><button class="btn" id="metadataCloseBtn" type="button" aria-label="Close metadata">×</button></header>
+    <form id="metadataForm">
+      <div class="metadataBody"><p class="metadataSummary" id="metadataSummary"></p><div class="metadataGrid" id="metadataFields"></div><div class="metadataWarnings" id="metadataWarnings"></div></div>
+      <footer class="metadataFoot"><button class="btn" id="metadataCancelBtn" type="button">Cancel</button><button class="btn primary" type="submit">Apply metadata</button></footer>
+    </form>
+  </section>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);const svg=$('svg');let pages=[],current=-1,selected=-1,direction='ltr',showArrows=false,addMode=false,drag=null,models={},previewMode=false,previewPanelIdx=-1,previewOverviewStage='start',previewOverlayMode='bw',previewFillBackground=true,previewSpread=false,previewSpreadGap=0,previewDarkOpacity=.74,previewFadedOpacity=.58,previewBwOpacity=.9,previewFocusFeather=2,previewAnimationEnabled=true,previewAnimationDuration=300,previewAdvancedOpen=false,rowDragIdx=null,hoveredPanel=-1,previewTransform={x:0,y:0,scale:1},previewCameraKey=null,previewAnimationFrame=null,lastThumbPage=-1,modelsReady=null;
@@ -116,6 +126,72 @@ function setSidebarTab(tab){const analysis=tab==='analysis';$('analysisTab').cla
 function initializeEditorLayout(){const canvasArea=$('canvasArea'),body=canvasArea.parentElement,workArea=document.createElement('div');workArea.className='workArea';body.insertBefore(workArea,canvasArea);workArea.append(canvasArea,$('thumbList'));$('analysisPane').prepend(document.querySelector('.detectRow'));$('analysisPane').append($('status'));$('guidedLoader').append($('jsonInput').closest('label'));$('analysisTab').onclick=()=>setSidebarTab('analysis');$('panelsTab').onclick=()=>setSidebarTab('panels')}
 initializeEditorLayout();
 let activeProjectId=null;
+const metadataFields=[
+  ['series','Series'],['number','Issue / number'],['volume','Volume'],['title','Title'],['summary','Summary','wide','textarea'],
+  ['writer','Writer'],['penciller','Penciller'],['inker','Inker'],['colorist','Colorist'],['letterer','Letterer'],['cover_artist','Cover artist'],['editor','Editor'],
+  ['publisher','Publisher'],['imprint','Imprint'],['genre','Genre'],['format','Format'],['language_iso','Language (ISO)'],['year','Year','','number'],['month','Month','','number'],['day','Day','','number'],['page_count','Declared page count','','number'],['manga','Manga'],['black_and_white','Black & white'],['story_arc','Story arc'],['series_group','Series group'],['age_rating','Age rating'],['web','Web','wide'],
+  ['release_group','Scene release group','wide'],['release_type','Release type','','select'],['release_tags','Release tags','wide','tags'],['edition_label','Edition label','wide'],['release_revision','Release revision'],['release_notes','Release notes','wide','textarea']
+];
+const metadataFieldKeys=new Set(metadataFields.map(([key])=>key)),numericMetadataFields=new Set(['year','month','day','page_count']);
+const releaseTypeOptions=[['','Not specified'],['digital','Digital'],['scan','Scan'],['hybrid','Hybrid'],['epub_extract','ePub extract'],['web_rip','Web rip'],['unknown','Unknown'],['other','Other']];
+let projectMetadata={sources:{},warnings:[]};
+function normalizeProjectMetadata(metadata={}){const normalized={sources:{},warnings:[],comicinfo_path:null,...metadata};normalized.sources={...(metadata?.sources||{})};normalized.warnings=Array.isArray(metadata?.warnings)?metadata.warnings.filter(Boolean):[];metadataFields.forEach(([key])=>{if(key==='release_tags'&&Array.isArray(normalized[key]))normalized[key]=normalized[key].join(', ');else if(normalized[key]===undefined||normalized[key]===null)normalized[key]='';else normalized[key]=String(normalized[key])});return normalized}
+function metadataInputValue(key,value){const normalized=String(value??'').trim();if(key==='release_tags')return[...new Set(normalized.split(',').map(tag=>tag.trim()).filter(Boolean))];if(numericMetadataFields.has(key))return normalized?Number(normalized):null;return normalized||null}
+function hasMetadataInputValue(value){return Array.isArray(value)?value.length>0:value!==null&&value!==''}
+function metadataDraft(){const draft={sources:{...projectMetadata.sources}};metadataFields.forEach(([key])=>{const value=metadataInputValue(key,projectMetadata[key]);if(hasMetadataInputValue(value))draft[key]=value});if(projectMetadata.comicinfo_path)draft.comicinfo_path=projectMetadata.comicinfo_path;draft.warnings=[...(projectMetadata.warnings||[])];return draft}
+function metadataWarnings(metadata=projectMetadata){const declared=Number(String(metadata.page_count??'').trim());if(Number.isFinite(declared)&&String(metadata.page_count??'').trim()!==''&&declared!==pages.length){const source=metadata.sources?.page_count==='comicinfo.xml'?'ComicInfo.xml':'Metadata';return [`${source} declares ${declared} pages, but this project contains ${pages.length}.`]}return []}
+function metadataSourceLabel(source){return source==='comicinfo.xml'?'ComicInfo.xml':source==='filename'?'Filename':source==='derived'?'Derived':'Manual'}
+function metadataTitleSuggestion(){const parts=[projectMetadata.series,projectMetadata.number,projectMetadata.title].map(value=>String(value||'').trim()).filter(Boolean);return parts.join(' — ')||pages[0]?.filename?.replace(/\.[^.]+$/,'')||'Untitled comic'}
+function updateMetadataButton(){const populated=metadataFields.filter(([key])=>String(projectMetadata[key]??'').trim()).length,button=$('metadataBtn');button.textContent=populated?`Metadata (${populated})`:'Metadata';button.title=projectMetadata.comicinfo_path?`Imported from ${projectMetadata.comicinfo_path}`:'Edit project metadata'}
+function renderMetadataForm(){
+  const grid=$('metadataFields');
+  grid.replaceChildren();
+  metadataFields.forEach(([key,label,wide,kind])=>{
+    const field=document.createElement('label');
+    field.className=`metadataField${wide?' wide':''}`;
+    const caption=document.createElement('span');
+    caption.className='metadataLabel';
+    caption.textContent=label;
+    let control;
+    if(kind==='textarea'){
+      control=document.createElement('textarea');
+      control.rows=4;
+    }else if(kind==='select'){
+      control=document.createElement('select');
+      releaseTypeOptions.forEach(([value,text])=>{
+        const option=document.createElement('option');
+        option.value=value;
+        option.textContent=text;
+        control.appendChild(option);
+      });
+    }else{
+      control=document.createElement('input');
+      control.type=kind==='number'?'number':'text';
+      if(kind==='number'){
+        control.min=key==='month'||key==='day'?'1':'0';
+        control.max=key==='month'?'12':key==='day'?'31':key==='year'?'9999':'10000';
+        control.step='1';
+      }
+      if(kind==='tags')control.placeholder='e.g. upscale, re-encode';
+    }
+    control.className='field';
+    control.name=key;
+    control.dataset.meta=key;
+    control.value=projectMetadata[key]??'';
+    const source=document.createElement('small');
+    source.className='metadataSource';
+    source.textContent=projectMetadata.sources?.[key]?`Source: ${metadataSourceLabel(projectMetadata.sources[key])}`:'Not set';
+    field.append(caption,control,source);
+    grid.appendChild(field);
+  });
+  const imported=projectMetadata.comicinfo_path?`Imported from ${projectMetadata.comicinfo_path}. `:'No ComicInfo.xml has been imported. ';
+  $('metadataSummary').textContent=`${imported}Edit any field, then save the project to persist it.`;
+  const warnings=[...(projectMetadata.warnings||[]),...metadataWarnings()].filter((warning,index,list)=>list.indexOf(warning)===index);
+  $('metadataWarnings').textContent=warnings.join(' ');
+}
+function openMetadata(){renderMetadataForm();$('metadataModal').hidden=false;$('metadataFields').querySelector('input,textarea')?.focus()}
+function closeMetadata(){ $('metadataModal').hidden=true }
+function applyMetadataForm(){const previous=metadataDraft(),next=normalizeProjectMetadata(projectMetadata);$('metadataFields').querySelectorAll('[data-meta]').forEach(control=>{const key=control.dataset.meta,value=control.value.trim(),nextValue=metadataInputValue(key,value);next[key]=value;if(JSON.stringify(previous[key]??null)!==JSON.stringify(nextValue)){if(hasMetadataInputValue(nextValue))next.sources[key]='manual';else delete next.sources[key]}});next.warnings=metadataWarnings(next);projectMetadata=next;closeMetadata();updateMetadataButton();setStatus('Metadata updated — save project to persist',true)}
 const reviewMeta={empty:{label:'No panels',title:'No panels to review'},model:{label:'Model — needs validation',title:'Panels produced by the model need review'},customized:{label:'Customized — needs validation',title:'Panels were edited and need review'},validated:{label:'Validated',title:'Panels have been reviewed'}};
 function pageReview(page){return page?.reviewStatus||(page?.panels?.length?'customized':'empty')}
 function pageModelIds(page){return page?.modelIds?.length?[...new Set(page.modelIds)]:[...new Set((page?.panels||[]).map(panel=>panel.model).filter(Boolean))]}
@@ -147,18 +223,18 @@ function setProgress(p){$('progressBar').style.width=`${p}%`}
 async function loadModels(){try{const r=await fetch('/v1/models');if(!r.ok)throw new Error(`HTTP ${r.status}`);const d=await r.json();models=d.models||{};const sel=$('modelSelect'),preferred=models['inkwell-yolov8n']?'inkwell-yolov8n':d.default;sel.innerHTML='';Object.entries(models).sort(([a],[b])=>a==='inkwell-yolov8n'?-1:b==='inkwell-yolov8n'?1:a.localeCompare(b)).forEach(([id,m])=>{const o=document.createElement('option');o.value=id;o.textContent=m.title||id;sel.appendChild(o)});if(preferred&&models[preferred])sel.value=preferred;updateModelMeta();setStatus(`${Object.keys(models).length} model(s) available`,true)}catch(e){$('modelSelect').innerHTML='<option>Models unavailable</option>';setStatus(`Could not load /v1/models: ${e.message}`)}}
 function updateModelMeta(){const m=models[$('modelSelect').value];$('modelMeta').textContent=m?`${m.task||'detect'} · ${m.repo_id||''}${m.loaded?' · loaded':''}`:'';$('confidenceInput').placeholder=m?.default_confidence?`Confidence ${m.default_confidence}`:'Confidence'}
 $('modelSelect').onchange=updateModelMeta;
-function updateProjectControls(){$('saveProjectBtn').disabled=!pages.length;$('publishGuideBtn').disabled=!activeProjectId||!pages.length}
+function updateProjectControls(){$('saveProjectBtn').disabled=!pages.length;$('publishGuideBtn').disabled=!activeProjectId||!pages.length;updateMetadataButton()}
 async function apiJson(url,options={}){const response=await fetch(url,options);if(!response.ok){let detail='';try{detail=(await response.json()).detail||''}catch{}throw new Error(`${response.status} ${detail}`.trim())}return response.json()}
-function projectDraft(){return{title:$('projectSelect').selectedOptions[0]?.textContent?.trim()||pages[0]?.filename||'Untitled comic',reading_direction:direction,pages:pages.map(page=>({id:page.serverId,filename:page.filename,width:page.w,height:page.h,background_color:page.backgroundColor||null,is_wide_spread:!!page.isWideSpread,panels:page.panels.map(panel=>{const draft={points:panel.points.map(([x,y])=>[x,y])};if(panel.confidence!==undefined)draft.confidence=panel.confidence;if(panel.label)draft.label=panel.label;if(panel.model)draft.model=panel.model;return draft}),review_status:pageReview(page),model_ids:pageModelIds(page)}))}}
+function projectDraft(){return{title:$('projectSelect').selectedOptions[0]?.textContent?.trim()||metadataTitleSuggestion(),reading_direction:direction,metadata:metadataDraft(),pages:pages.map(page=>({id:page.serverId,filename:page.filename,width:page.w,height:page.h,background_color:page.backgroundColor||null,is_wide_spread:!!page.isWideSpread,panels:page.panels.map(panel=>{const draft={points:panel.points.map(([x,y])=>[x,y])};if(panel.confidence!==undefined)draft.confidence=panel.confidence;if(panel.label)draft.label=panel.label;if(panel.model)draft.model=panel.model;return draft}),review_status:pageReview(page),model_ids:pageModelIds(page)}))}}
 function setDirection(next){direction=next;$('ltrBtn').classList.toggle('active',next==='ltr');$('rtlBtn').classList.toggle('active',next==='rtl')}
-function replaceProjectDraft(project){pages.forEach(page=>{if(page.src?.startsWith('blob:'))URL.revokeObjectURL(page.src)});pages=project.pages.map(page=>{const restored={serverId:page.id,filename:page.filename,src:page.image_url,w:page.width,h:page.height,backgroundColor:page.background_color||null,isWideSpread:!!page.is_wide_spread,panels:page.panels||[],reviewStatus:page.review_status,modelIds:page.model_ids||[]};historyForPage(restored);return restored});refreshWideSpreadFlags();activeProjectId=project.id;current=pages.length?0:-1;selected=-1;lastThumbPage=-1;setDirection(project.reading_direction);$('projectSelect').value=project.id;render()}
+function replaceProjectDraft(project){pages.forEach(page=>{if(page.src?.startsWith('blob:'))URL.revokeObjectURL(page.src)});pages=project.pages.map(page=>{const restored={serverId:page.id,filename:page.filename,src:page.image_url,w:page.width,h:page.height,backgroundColor:page.background_color||null,isWideSpread:!!page.is_wide_spread,panels:page.panels||[],reviewStatus:page.review_status,modelIds:page.model_ids||[]};historyForPage(restored);return restored});projectMetadata=normalizeProjectMetadata(project.metadata);refreshWideSpreadFlags();activeProjectId=project.id;current=pages.length?0:-1;selected=-1;lastThumbPage=-1;setDirection(project.reading_direction);$('projectSelect').value=project.id;render()}
 async function loadProjectList(){try{const data=await apiJson('/v1/projects'),select=$('projectSelect'),selected=activeProjectId;select.innerHTML='<option value="">Projects</option>';data.projects.forEach(project=>{const option=document.createElement('option');option.value=project.id;option.textContent=project.title;select.appendChild(option)});select.value=selected||''}catch(error){setStatus(`Could not load projects: ${error.message}`)}}
 async function openProject(projectId){if(!projectId){$('projectSelect').value=activeProjectId||'';return}if(projectId===activeProjectId)return;if(pages.length&&!window.confirm('Replace the current editor pages with this saved project?')){$('projectSelect').value=activeProjectId||'';return}try{setStatus('Loading project…');replaceProjectDraft(await apiJson(`/v1/projects/${projectId}`));setStatus('Project loaded',true)}catch(error){setStatus(`Could not load project: ${error.message}`)}}
-async function createProject(){const title=window.prompt('Project name',pages[0]?.filename?.replace(/\.[^.]+$/,'')||'Untitled comic');if(!title?.trim())return null;const project=await apiJson('/v1/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:title.trim(),reading_direction:direction})});activeProjectId=project.id;await loadProjectList();return project.id}
+async function createProject(){const title=window.prompt('Project name',metadataTitleSuggestion());if(!title?.trim())return null;const project=await apiJson('/v1/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:title.trim(),reading_direction:direction})});activeProjectId=project.id;await loadProjectList();return project.id}
 async function uploadNewProjectPages(projectId){const pending=pages.filter(page=>!page.serverId);for(let index=0;index<pending.length;index++){const page=pending[index];setStatus(`Saving page ${index+1}/${pending.length}…`);setProgress((index/pending.length)*100);const source=page.src,blob=await(await fetch(source)).blob(),form=new FormData();form.append('file',blob,page.filename);const stored=await apiJson(`/v1/projects/${projectId}/pages`,{method:'POST',body:form});page.serverId=stored.id;page.src=stored.image_url;if(source.startsWith('blob:'))URL.revokeObjectURL(source)}setProgress(0)}
-async function saveProject(){if(!pages.length)return false;const button=$('saveProjectBtn'),original=button.textContent;button.disabled=true;button.textContent='Saving…';try{const projectId=activeProjectId||await createProject();if(!projectId)return false;await uploadNewProjectPages(projectId);const saved=await apiJson(`/v1/projects/${projectId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(projectDraft())});activeProjectId=saved.id;await loadProjectList();setStatus('Project saved',true);return true}catch(error){setStatus(`Could not save project: ${error.message}`);return false}finally{button.textContent=original;render()}}
+async function saveProject(){if(!pages.length)return false;const button=$('saveProjectBtn'),original=button.textContent;button.disabled=true;button.textContent='Saving…';try{const projectId=activeProjectId||await createProject();if(!projectId)return false;await uploadNewProjectPages(projectId);const saved=await apiJson(`/v1/projects/${projectId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(projectDraft())});activeProjectId=saved.id;projectMetadata=normalizeProjectMetadata(saved.metadata);await loadProjectList();setStatus('Project saved',true);return true}catch(error){setStatus(`Could not save project: ${error.message}`);return false}finally{button.textContent=original;render()}}
 async function publishGuide(){if(!await saveProject()||!activeProjectId)return;try{setStatus('Publishing guide…');const guide=await apiJson(`/v1/projects/${activeProjectId}/guide-versions`,{method:'POST'});setStatus(`Published guide version ${guide.version}`,true)}catch(error){setStatus(`Could not publish guide: ${error.message}`)}}
-$('projectSelect').onchange=event=>openProject(event.target.value);$('saveProjectBtn').onclick=saveProject;$('publishGuideBtn').onclick=publishGuide;
+$('projectSelect').onchange=event=>openProject(event.target.value);$('metadataBtn').onclick=openMetadata;$('metadataCloseBtn').onclick=closeMetadata;$('metadataCancelBtn').onclick=closeMetadata;$('metadataForm').onsubmit=event=>{event.preventDefault();applyMetadataForm()};$('metadataModal').onclick=event=>{if(event.target===$('metadataModal'))closeMetadata()};window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('metadataModal').hidden){event.preventDefault();closeMetadata()}});$('saveProjectBtn').onclick=saveProject;$('publishGuideBtn').onclick=publishGuide;
 function updateButtons(){const has=current>=0&&pages[current];['addRectBtn','sortBtn','arrowsBtn','exportPageBtn','detectBtn'].forEach(id=>$(id).disabled=!has);$('detectAllBtn').disabled=!pages.length;$('exportAllBtn').disabled=!pages.length;$('previewBtn').disabled=!pages.length;updatePageReviewUI();updateHistoryControls();updateProjectControls()}
 function selectPage(index){if(index<0||index>=pages.length||index===current)return;current=index;selected=-1;render()}
 function movePage(delta){if(!pages.length)return;selectPage(clamp((current<0?0:current)+delta,0,pages.length-1))}
@@ -463,9 +539,13 @@ function refreshWideSpreadFlags(){
 }
 async function addBlob(blob,name){const src=URL.createObjectURL(blob),{w,h,backgroundColor}=await imageInfo(src),page={filename:name,src,w,h,backgroundColor,panels:[],reviewStatus:'empty'};historyForPage(page);pages.push(page);refreshWideSpreadFlags()}
 async function loadPageImages(files){const firstNewPage=pages.length;for(const file of files)await addBlob(file,file.name);if(current<0&&pages.length)current=0;render();return pages.map((_,index)=>index).slice(firstNewPage)}
-function clearPages(){pages.forEach(page=>URL.revokeObjectURL(page.src));pages=[];activeProjectId=null;$('projectSelect').value='';current=-1;selected=-1;lastThumbPage=-1;render()}
+function clearPages(){pages.forEach(page=>URL.revokeObjectURL(page.src));pages=[];projectMetadata=normalizeProjectMetadata();activeProjectId=null;$('projectSelect').value='';current=-1;selected=-1;lastThumbPage=-1;render()}
 async function prepareDefaultInkwellAnalysis(){if(modelsReady)await modelsReady;if(!models['inkwell-yolov8n']){setStatus('Inkwell is unavailable; analysis was not run');return false}$('modelSelect').value='inkwell-yolov8n';updateModelMeta();setSidebarTab('analysis');return true}
 async function runDefaultInkwellAnalysis(pageIndexes=pages.map((_,index)=>index)){if(!pageIndexes.length||!await prepareDefaultInkwellAnalysis())return;await detectAllPages(pageIndexes)}
+const comicInfoFieldMap={Series:'series',Number:'number',Volume:'volume',Title:'title',Summary:'summary',Writer:'writer',Penciller:'penciller',Inker:'inker',Colorist:'colorist',Letterer:'letterer',CoverArtist:'cover_artist',Editor:'editor',Publisher:'publisher',Imprint:'imprint',Genre:'genre',Format:'format',LanguageISO:'language_iso',Year:'year',Month:'month',Day:'day',PageCount:'page_count',Manga:'manga',BlackAndWhite:'black_and_white',StoryArc:'story_arc',SeriesGroup:'series_group',AgeRating:'age_rating',Web:'web'};
+function comicInfoValue(root,tag){const node=root.getElementsByTagName(tag)[0];return node?.textContent?.trim()||''}
+function comicInfoNumeric(value,key){if(!/^\d+$/.test(value))return null;const number=Number(value);if((key==='month'&&(number<1||number>12))||(key==='day'&&(number<1||number>31))||(key==='year'&&number>9999)||number>10000)return null;return String(number)}
+async function importComicInfoMetadata(zip){const candidates=Object.values(zip.files).filter(entry=>!entry.dir&&entry.name.split('/').pop().toLowerCase()==='comicinfo.xml').sort((a,b)=>a.name.localeCompare(b.name));if(!candidates.length)return null;const entry=candidates[0],xmlText=await entry.async('string');if(xmlText.length>500000)throw new Error('ComicInfo.xml is larger than 500 KB');const documentXml=new DOMParser().parseFromString(xmlText,'application/xml');if(documentXml.getElementsByTagName('parsererror').length)throw new Error('ComicInfo.xml is not valid XML');const root=documentXml.documentElement;if(root?.nodeName.toLowerCase()!=='comicinfo')throw new Error('ComicInfo.xml has no ComicInfo root');const metadata=normalizeProjectMetadata({comicinfo_path:entry.name});Object.entries(comicInfoFieldMap).forEach(([tag,key])=>{if(!metadataFieldKeys.has(key))return;const raw=comicInfoValue(root,tag),value=numericMetadataFields.has(key)?comicInfoNumeric(raw,key):raw;if(value){metadata[key]=value;metadata.sources[key]='comicinfo.xml'}});return metadata}
 async function loadCbzFile(file){
   if(!file)return;
   if(typeof JSZip==='undefined'){setStatus('JSZip could not load');return}
@@ -476,6 +556,7 @@ async function loadCbzFile(file){
     setStatus('Reading CBZ…');
     const zip=await JSZip.loadAsync(file),entries=Object.values(zip.files).filter(entry=>!entry.dir&&/\.(jpe?g|png|webp)$/i.test(entry.name)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
     if(!entries.length)throw new Error('No JPEG, PNG, or WebP pages found');
+    let metadataNotice='';try{const importedMetadata=await importComicInfoMetadata(zip);if(importedMetadata){projectMetadata=importedMetadata;metadataNotice=`; imported ${importedMetadata.comicinfo_path}`}}catch(error){metadataNotice=`; ignored ComicInfo.xml (${error.message})`}
     let extracted=0,analyzed=0,detectedPanels=0,analysisError=null,inkwellAvailable=null;
     inkwellReady.then(available=>{inkwellAvailable=available});
     const reportProgress=()=>{
@@ -501,9 +582,10 @@ async function loadCbzFile(file){
       reportProgress();
     }
     await pendingAnalysis;
+    projectMetadata.warnings=metadataWarnings(projectMetadata);updateMetadataButton();
     if(await inkwellReady){
-      setStatus(analysisError?`Loaded ${entries.length} pages; Inkwell completed with errors: ${analysisError.message}`:`Loaded ${entries.length} pages; Inkwell detected ${detectedPanels} panel(s)`,!analysisError);
-    }else setStatus(`Loaded ${entries.length} pages; Inkwell is unavailable`);
+      setStatus(analysisError?`Loaded ${entries.length} pages${metadataNotice}; Inkwell completed with errors: ${analysisError.message}`:`Loaded ${entries.length} pages${metadataNotice}; Inkwell detected ${detectedPanels} panel(s)`,!analysisError);
+    }else setStatus(`Loaded ${entries.length} pages${metadataNotice}; Inkwell is unavailable`);
   }catch(err){setStatus(`CBZ error: ${err.message}`)}finally{setProgress(0)}
 }
 async function handleUploadFiles(files){const selected=[...files];if(!selected.length)return;const archives=selected.filter(file=>/\.(cbz|zip)$/i.test(file.name));if(archives.length){if(archives.length!==1||selected.length!==1){setStatus('Upload one CBZ or one or more page images, not both');return}await loadCbzFile(archives[0]);return}const pageIndexes=await loadPageImages(selected);await runDefaultInkwellAnalysis(pageIndexes)}

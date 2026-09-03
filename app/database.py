@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -18,11 +19,16 @@ session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 async def init_database() -> None:
     # Import registers all persistence models before metadata is created. Alembic
-    # migrations will replace create_all as the schema starts evolving.
+    # migrations will replace this bootstrap path as the schema starts evolving.
     from . import project_models  # noqa: F401
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        # The first persistence release created `projects` without metadata.
+        # Keep existing Dokploy volumes upgradeable until Alembic is introduced.
+        await connection.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb")
+        )
 
 
 async def close_database() -> None:

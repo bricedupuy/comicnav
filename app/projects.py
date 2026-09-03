@@ -16,12 +16,47 @@ from .config import settings
 from .database import get_session
 from .project_models import GuideVersion, Project, ProjectPage
 from .readium import editor_guided_document
-from .schemas import ProjectCreateRequest, ProjectDraftUpdate, ProjectPageDraft
+from .schemas import ProjectCreateRequest, ProjectDraftUpdate, ProjectMetadata, ProjectPageDraft
 from .storage import media_storage
 
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
 _ALLOWED_IMAGE_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+_METADATA_VALUE_FIELDS = {
+    "series",
+    "number",
+    "volume",
+    "title",
+    "summary",
+    "writer",
+    "penciller",
+    "inker",
+    "colorist",
+    "letterer",
+    "cover_artist",
+    "editor",
+    "publisher",
+    "imprint",
+    "genre",
+    "format",
+    "language_iso",
+    "year",
+    "month",
+    "day",
+    "page_count",
+    "manga",
+    "black_and_white",
+    "story_arc",
+    "series_group",
+    "age_rating",
+    "web",
+    "release_group",
+    "release_type",
+    "release_tags",
+    "edition_label",
+    "release_revision",
+    "release_notes",
+}
 
 
 def _project_url(project_id: UUID) -> str:
@@ -45,6 +80,26 @@ def _page_payload(page: ProjectPage) -> dict:
         "review_status": page.review_status,
         "model_ids": page.model_ids,
     }
+
+
+def _metadata_payload(metadata: ProjectMetadata, actual_page_count: int) -> dict:
+    """Store typed metadata and recompute warnings from trusted project facts."""
+    payload = metadata.model_dump(exclude={"sources", "warnings"}, exclude_none=True)
+    sources = {
+        field: source
+        for field, source in metadata.sources.items()
+        if field in _METADATA_VALUE_FIELDS and payload.get(field) not in (None, "", [])
+    }
+    warnings: list[str] = []
+    declared_page_count = payload.get("page_count")
+    if declared_page_count is not None and declared_page_count != actual_page_count:
+        source = "ComicInfo.xml" if sources.get("page_count") == "comicinfo.xml" else "Metadata"
+        warnings.append(
+            f"{source} declares {declared_page_count} pages, but this project contains {actual_page_count}."
+        )
+    payload["sources"] = sources
+    payload["warnings"] = warnings
+    return payload
 
 
 def _validate_page_draft(page_index: int, draft: ProjectPageDraft) -> None:
@@ -74,6 +129,7 @@ async def _project_payload(session: AsyncSession, project: Project) -> dict:
         "id": str(project.id),
         "title": project.title,
         "reading_direction": project.reading_direction,
+        "metadata": project.metadata_ or {},
         "created_at": project.created_at.isoformat(),
         "updated_at": project.updated_at.isoformat(),
         "pages": [_page_payload(page) for page in pages],
@@ -203,6 +259,7 @@ async def save_project_draft(
 
     project.title = body.title
     project.reading_direction = body.reading_direction
+    project.metadata_ = _metadata_payload(body.metadata, len(body.pages))
     for page_index, draft in enumerate(body.pages):
         page = existing_by_id[draft.id]
         if draft.width != page.width or draft.height != page.height:

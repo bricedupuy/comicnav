@@ -442,6 +442,18 @@ not the final archive-ingest design. The routes intentionally remain
 unauthenticated until organization boundaries and the Better Auth gateway are
 introduced.
 
+Project metadata is now persisted with per-field provenance. The editor reads
+`ComicInfo.xml` from a CBZ locally to prefill editable fields and flags a
+declared/actual page-count mismatch. This is a soft matching signal only; the
+future archive worker must repeat extraction server-side and preserve raw
+archive facts for reliable matching.
+
+The project metadata model also records scene/rendition facts that ComicInfo
+does not standardize: release group, release type, flexible processing tags,
+edition label, revision, and notes. They are intentionally stored as
+edition/archive clues, not canonical work metadata; matching must verify them
+against page/layout evidence.
+
 ### Phase 2 - private archive ingest
 
 - Add object storage and signed uploads.

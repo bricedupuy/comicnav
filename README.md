@@ -185,6 +185,27 @@ the server rather than from browser memory.
 Publishing creates an immutable Readium guide-version document from the saved
 draft. Creating another version never changes the previous one.
 
+Use **Metadata** in the editor's top bar to review and edit project-level
+metadata. When a CBZ contains `ComicInfo.xml`, the editor reads the standard
+ComicInfo fields during import and pre-fills series/issue/title, creators,
+publisher, language, edition-related fields, date, and page count. Each
+imported field is marked `ComicInfo.xml`; changing a field marks only that
+field as `Manual`. A declared page count that differs from the actual imported
+page count is shown as a warning and saved with the project.
+
+The same panel also holds non-ComicInfo **release / rendition** fields for
+matching and review: free-text scene release group (for example `TONER` or
+`NEO RIP-Club`), controlled release type (`Digital`, `Scan`, `Hybrid`, ePub
+extract, Web rip, and Unknown/Other), flexible processing tags, edition label,
+revision, and release notes. These are intentionally separate from publisher
+metadata: they describe a particular file/release, are normally entered
+manually, and remain soft matching evidence rather than canonical identity.
+
+`ComicInfo.xml` is currently a client-side import hint. It is useful metadata
+and a future matching signal, but it is not treated as canonical release data.
+The later private archive worker will parse the same file server-side as part
+of the durable archive manifest.
+
 The initial private API surface is intentionally small and unauthenticated:
 
 - `POST` / `GET /v1/projects` create and list projects.
@@ -197,5 +218,5 @@ Page media currently uses the durable `/data` Docker volume behind a small
 storage adapter. This is deliberately a private editor persistence layer, not
 the future object-storage/archive pipeline described in `PLAN.md`. The next
 platform increment replaces this adapter with private S3-compatible storage,
-adds migrations, and introduces user/organization isolation before these write
-routes are exposed beyond a trusted deployment.
+adds versioned migrations, and introduces user/organization isolation before
+these write routes are exposed beyond a trusted deployment.
