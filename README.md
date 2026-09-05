@@ -33,6 +33,21 @@ Open API docs:
 http://localhost:8000/docs
 ```
 
+## Panel confidence filtering
+
+In the **Panels** section, **Minimum confidence** temporarily hides panels below
+the selected percentage from the current page's editor list and canvas. The cutoff
+starts at 0% and is remembered separately per page for the editing session.
+Panels at the cutoff or without a confidence score are kept.
+
+**Remove … below …%** applies the removal to that page only, as one undoable edit,
+and marks it for validation (or empty if no panels remain). The slider resets to 0%
+after removal so Undo immediately shows restored panels. Until removal, all panels
+remain in saved drafts, exports and reader Preview; moving the slider alone does
+not change the comic. Use **Save project** to persist actual removals.
+
+Checks: `node tests/test_panel_confidence.cjs`.
+
 ## Preview effects
 
 In Preview, enable **Blur outside panel** to blur the area outside the focused
