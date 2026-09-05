@@ -488,6 +488,17 @@ against page/layout evidence.
 
 ## 14. Immediate next deliverable
 
+GCD is now the first metadata connector: server-side series/issue search,
+candidate comparison in the editor, selective field application, and persisted
+provenance with raw source snapshots. It supports optional server-side Basic
+Auth, bounded caching, serialized requests, and rate-limit cooldowns. This
+remains metadata enrichment, independent from page/layout matching.
+
+Next metadata provider: Comic Vine, with per-provider credentials and terms
+appropriate to the deployment. GCD and Comic Vine take priority over Metron;
+Bedetheque remains a future integration. Reuse the candidate comparison UX and
+extend provenance types for each provider.
+
 Replace the bootstrap `create_all` schema setup with versioned migrations, then
 write the page-manifest and match-response schemas. Add the Largo Winch files
 (or safe fingerprint fixtures) as the first matching regression suite. That

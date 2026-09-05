@@ -30,6 +30,8 @@ services:
       RECTANGLE_FILL_THRESHOLD: ${RECTANGLE_FILL_THRESHOLD:-0.965}
       PERCENT_DECIMALS: ${PERCENT_DECIMALS:-3}
       HF_TOKEN: ${HF_TOKEN:-}
+      GCD_USERNAME: ${GCD_USERNAME:-}
+      GCD_PASSWORD: ${GCD_PASSWORD:-}
       # Set DATABASE_URL for a managed PostgreSQL instance. Otherwise the
       # application builds a URL from these local Compose credentials.
       DATABASE_URL: ${DATABASE_URL:-}

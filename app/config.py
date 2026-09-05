@@ -41,6 +41,8 @@ class Settings(BaseModel):
     percent_decimals: int = int(os.getenv("PERCENT_DECIMALS", "3"))
     database_url: str = os.getenv("DATABASE_URL") or _default_database_url()
     media_dir: Path = Path(os.getenv("MEDIA_DIR", "/data/media"))
+    gcd_username: str = os.getenv("GCD_USERNAME", "")
+    gcd_password: str = os.getenv("GCD_PASSWORD", "")
 
 
 settings = Settings()

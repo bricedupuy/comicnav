@@ -26,6 +26,7 @@ from .ordering import OrderablePanel, reading_order
 from .readium import guided_document
 from .projects import router as project_router
 from .schemas import AnalyzeResponse
+from .metadata import router as metadata_router
 
 # Uvicorn configures this logger at INFO level, so the timing records are
 # visible in container logs without requiring a separate logging setup.
@@ -50,6 +51,7 @@ app = FastAPI(
 specs = load_model_specs()
 manager = ModelManager(specs)
 app.include_router(project_router)
+app.include_router(metadata_router)
 
 
 def _validate_model(name: str) -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -45,8 +46,24 @@ class ProjectCreateRequest(BaseModel):
     reading_direction: Literal["ltr", "rtl"] = "ltr"
 
 
-MetadataSource = Literal["comicinfo.xml", "filename", "manual", "derived"]
+MetadataSource = Literal["comicinfo.xml", "filename", "manual", "derived", "gcd"]
 ReleaseType = Literal["digital", "scan", "hybrid", "epub_extract", "web_rip", "unknown", "other"]
+
+
+class MetadataRecord(BaseModel):
+    provider: Literal["gcd"] = "gcd"
+    external_id: int = Field(gt=0)
+    source_url: str = Field(pattern=r"^https://www\.comics\.org/issue/[0-9]+/$")
+    retrieved_at: datetime
+    adapter_version: Literal["gcd-v1"] = "gcd-v1"
+    license: Literal["CC BY-SA 4.0"] = "CC BY-SA 4.0"
+    attribution: Literal["Grand Comics Database"] = "Grand Comics Database"
+    raw: dict = Field(default_factory=dict)
+
+
+class MetadataFieldProvenance(BaseModel):
+    record_id: str = Field(pattern=r"^gcd:issue:[0-9]+$")
+    original_value: str | int
 
 
 class ProjectMetadata(BaseModel):
@@ -87,6 +104,8 @@ class ProjectMetadata(BaseModel):
     release_notes: str | None = Field(default=None, max_length=5_000)
     comicinfo_path: str | None = Field(default=None, max_length=500)
     sources: dict[str, MetadataSource] = Field(default_factory=dict, max_length=48)
+    provider_records: dict[str, MetadataRecord] = Field(default_factory=dict, max_length=8)
+    field_provenance: dict[str, MetadataFieldProvenance] = Field(default_factory=dict, max_length=48)
     warnings: list[str] = Field(default_factory=list, max_length=20)
 
     @field_validator("release_tags")

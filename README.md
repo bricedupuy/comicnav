@@ -33,6 +33,17 @@ Open API docs:
 http://localhost:8000/docs
 ```
 
+## Preview effects
+
+In Preview, enable **Blur outside panel** to blur the area outside the focused
+panel. It can be combined with Normal, B&W, Dark or Faded, in single-page and
+two-page spread mode. The focused panel stays sharp, with the existing Feather
+setting softening the boundary; full-page/spread overviews remain unaffected.
+Blur is off by default. **Advanced → Blur strength** adjusts the radius from
+0–2% of the page/spread's shorter side (default 0.4%, independent of filter opacity).
+
+Preview effect checks: `node tests/test_preview_effects.cjs`.
+
 ## List models
 
 ```bash
@@ -205,6 +216,60 @@ manually, and remain soft matching evidence rather than canonical identity.
 and a future matching signal, but it is not treated as canonical release data.
 The later private archive worker will parse the same file server-side as part
 of the durable archive manifest.
+
+### Find metadata with GCD
+
+Open **Metadata → Find metadata — Grand Comics Database**. Enter the series
+name and issue number, choose the **language**, with an optional **issue** year, then search. Language
+is prefilled from the project's metadata (including ComicInfo.xml), or left blank
+for all languages when unknown. Enter an ISO language code such as `fr`, `nl` or
+`en`; regional codes such as `fr-BE` search the base language `fr`.
+The search
+is available with or without ComicInfo.xml; it opens automatically when no
+ComicInfo.xml was imported. If a search finds nothing, shorten the series name
+or remove the year (some GCD entries have no indexed date).
+
+Candidate languages are shown before comparison. GCD does not currently expose
+a language search parameter, so the server resolves and caches each distinct
+series' language and filters each result page locally. Unknown-language records
+are excluded when a language is selected. An empty filtered page may still have
+matches on **Next results**; the UI preserves pagination and reports exclusions.
+These extra series lookups can make an uncached search slower.
+
+Choose **Compare fields** on a candidate. Review its language, publication
+details and edition, then select which fields to use. Only empty fields are
+preselected. **Use selected fields → Apply metadata → Save project** persists
+the values. Cancel discards changes to the metadata form. Release group and
+processing tags remain independent of GCD's publication metadata.
+
+Imported fields retain the GCD issue ID/link, original imported value, retrieval
+time, adapter version and attribution. One raw issue/series/publisher snapshot
+is stored per referenced GCD issue in the existing metadata JSONB column (up to
+eight referenced issues per project). Manual edits remove that field's active
+GCD provenance. Saved source links remain visible in the metadata panel.
+
+The server uses GCD's API with optional Basic Auth. In Dokploy, set both
+`GCD_USERNAME` and `GCD_PASSWORD` to use a GCD account; leaving both blank uses
+anonymous access. Credentials never reach the browser. Access may be limited
+by GCD; the UI reports authentication errors, timeouts and rate limits.
+Outbound requests are serialized per process with one-second spacing, a
+bounded one-hour in-memory cache, and a cooldown after HTTP 429. Cache and
+throttle state reset when the process restarts; a shared limiter is needed if
+the app later runs multiple workers.
+
+- `GET /v1/metadata/gcd/search?series=Largo%20Winch&number=25&language=fr` returns French candidates (omit `language` for all languages).
+- `GET /v1/metadata/gcd/issues/{id}` returns normalized fields and provenance.
+
+These are metadata suggestions; selecting one does not assert a matching page
+layout or validate guided navigation. Metadata attribution is
+[Grand Comics Database](https://www.comics.org/),
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+The adapter follows the [GCD API documentation](https://github.com/GrandComicsDatabase/gcd-django/wiki/API).
+Comic Vine is the next provider; it is not connected yet.
+
+For local verification, install the app dependencies and `pytest`, then run
+`python -B -m pytest -q`. The editor's JavaScript parser and metadata interaction
+checks can be run separately with `node tests/test_editor_metadata.cjs`.
 
 The initial private API surface is intentionally small and unauthenticated:
 

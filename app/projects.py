@@ -84,7 +84,7 @@ def _page_payload(page: ProjectPage) -> dict:
 
 def _metadata_payload(metadata: ProjectMetadata, actual_page_count: int) -> dict:
     """Store typed metadata and recompute warnings from trusted project facts."""
-    payload = metadata.model_dump(exclude={"sources", "warnings"}, exclude_none=True)
+    payload = metadata.model_dump(mode="json", exclude={"sources", "warnings"}, exclude_none=True)
     sources = {
         field: source
         for field, source in metadata.sources.items()
@@ -98,6 +98,15 @@ def _metadata_payload(metadata: ProjectMetadata, actual_page_count: int) -> dict
             f"{source} declares {declared_page_count} pages, but this project contains {actual_page_count}."
         )
     payload["sources"] = sources
+    provenance = payload.get("field_provenance", {})
+    records = payload.get("provider_records", {})
+    payload["field_provenance"] = {
+        field: evidence for field, evidence in provenance.items()
+        if field in _METADATA_VALUE_FIELDS and sources.get(field) == "gcd"
+        and evidence["record_id"] in records
+    }
+    used_records = {evidence["record_id"] for evidence in payload["field_provenance"].values()}
+    payload["provider_records"] = {key: record for key, record in records.items() if key in used_records}
     payload["warnings"] = warnings
     return payload
 

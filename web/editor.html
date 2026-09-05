@@ -21,6 +21,14 @@
 .previewBar{display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--ui-bg);border-top:1px solid var(--ui-border);flex:0 0 auto}.previewLabel{font-size:12px;color:#c8c8ce;font-variant-numeric:tabular-nums;white-space:nowrap}.previewControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.previewControl{display:flex;align-items:center;gap:6px;color:#a8a8af;font-size:11px;white-space:nowrap}.previewSelect{width:auto;padding:6px 7px}.previewSwatch{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:#151516}.previewAdvanced{display:none;flex-basis:100%;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0 1px;border-top:1px solid var(--ui-border)}.previewAdvanced.open{display:flex}.previewRange{display:flex;align-items:center;gap:6px;color:#a8a8af;font-size:11px;white-space:nowrap}.previewRange input{accent-color:var(--accent);width:88px}.previewRange output{width:34px;color:#dedee4;font-variant-numeric:tabular-nums}.app.previewing .sidebar,.app.previewing .filmstrip{display:none}.app.previewing #editTools{display:none}.app.previewing .previewBar{display:flex}
 .metadataBackdrop{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.66)}.metadataBackdrop[hidden]{display:none}.metadataDialog{width:min(820px,100%);max-height:min(820px,calc(100dvh - 40px));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--ui-border);border-radius:12px;background:var(--ui-bg);box-shadow:0 24px 80px rgba(0,0,0,.45)}.metadataDialog form{display:flex;flex:1;min-height:0;flex-direction:column}.metadataHead,.metadataFoot{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--ui-border)}.metadataHead h2{margin:0;font-size:14px}.metadataHead .spacer{flex:1}.metadataFoot{justify-content:flex-end;border-top:1px solid var(--ui-border);border-bottom:0}.metadataBody{overflow:auto;padding:15px}.metadataSummary{margin:0 0 13px;color:#aaaab1;font-size:12px;line-height:1.45}.metadataGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metadataField{display:flex;flex-direction:column;gap:5px;min-width:0}.metadataField.wide{grid-column:1/-1}.metadataLabel{color:#b9b9c0;font-size:11px;font-weight:700}.metadataSource{color:#777780;font-size:10px}.metadataWarnings{margin-top:13px;padding:10px 11px;border:1px solid rgba(224,164,88,.36);border-radius:8px;background:rgba(224,164,88,.08);color:#e9c27d;font-size:11px;line-height:1.45}.metadataWarnings:empty{display:none}@media(max-width:620px){.metadataGrid{grid-template-columns:1fr}.metadataDialog{max-height:calc(100dvh - 20px)}.metadataBackdrop{padding:10px}}
 </style>
+<style>
+.metadataLookup{margin-bottom:16px;padding:12px;border:1px solid var(--ui-border);border-radius:8px}
+.metadataLookup p{font-size:12px;line-height:1.5;color:#aaaab1}
+.metadataLookup a,.metadataSource a{color:var(--flow)}
+.lookupInputs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.lookupInputs label{flex:1;min-width:90px;font-size:11px}
+.lookupCandidate{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--ui-border);font-size:12px}.lookupCandidate span{flex:1}
+.lookupComparison{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0}.lookupComparison td,.lookupComparison th{padding:8px 5px;text-align:left;border-bottom:1px solid var(--ui-border);overflow-wrap:anywhere;max-width:240px;white-space:pre-wrap}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -89,6 +97,7 @@
           <option value="bw" selected>B&amp;W</option>
         </select>
       </label>
+      <label class="previewControl"><input id="previewBlurEnabled" type="checkbox"> Blur outside panel</label>
       <label class="previewControl" title="Uses the dominant colour sampled from the page edge"><input id="previewBackgroundFill" type="checkbox" checked> Fill canvas <span class="previewSwatch" id="previewBackgroundSwatch"></span></label>
       <button class="btn" id="previewAdvancedBtn" type="button" aria-expanded="false">Advanced</button>
     </div>
@@ -106,6 +115,7 @@
       <label class="previewRange">Faded <input id="previewFadedOpacity" type="range" min="0" max="100" step="1" value="58"><output id="previewFadedOpacityValue">58%</output></label>
       <label class="previewRange">B&amp;W <input id="previewBwOpacity" type="range" min="0" max="100" step="1" value="90"><output id="previewBwOpacityValue">90%</output></label>
       <label class="previewRange">Feather <input id="previewFocusFeather" type="range" min="0" max="2" step="0.1" value="2"><output id="previewFocusFeatherValue">2.0%</output></label>
+      <label class="previewRange" title="Blur radius as a percentage of the page's shorter side">Blur strength <input id="previewBlurStrength" type="range" min="0" max="2" step="0.1" value="0.4"><output id="previewBlurStrengthValue">0.4%</output></label>
       <label class="previewRange">Animation <input id="previewAnimationDuration" type="range" min="100" max="2000" step="50" value="300"><output id="previewAnimationDurationValue">300ms</output></label>
     </div>
   </div>
@@ -114,7 +124,25 @@
   <section class="metadataDialog" role="dialog" aria-modal="true" aria-labelledby="metadataTitle">
     <header class="metadataHead"><h2 id="metadataTitle">Project metadata</h2><span class="spacer"></span><button class="btn" id="metadataCloseBtn" type="button" aria-label="Close metadata">×</button></header>
     <form id="metadataForm">
-      <div class="metadataBody"><p class="metadataSummary" id="metadataSummary"></p><div class="metadataGrid" id="metadataFields"></div><div class="metadataWarnings" id="metadataWarnings"></div></div>
+      <div class="metadataBody"><p class="metadataSummary" id="metadataSummary"></p>
+        <details class="metadataLookup" id="gcdLookup">
+          <summary>Find metadata — Grand Comics Database</summary>
+          <p>Search by series and issue number. Leave year empty to include editions with unknown dates. You choose which fields to import.</p>
+          <div class="lookupInputs">
+            <label>Language<input class="field" id="gcdLanguage" list="gcdLanguages" maxlength="35" pattern="[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*" placeholder="All languages (or enter fr, en…)" title="Language code, e.g. fr or en. Leave blank for all languages."></label>
+            <datalist id="gcdLanguages"><option value="fr">French</option><option value="en">English</option><option value="nl">Dutch</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="ja">Japanese</option></datalist>
+            <label>Series<input class="field" id="gcdSeries" maxlength="200" placeholder="Largo Winch"></label>
+            <label>Issue / number<input class="field" id="gcdNumber" maxlength="50" placeholder="25"></label>
+            <label>Issue year (optional)<input class="field" id="gcdYear" type="number" min="1" max="9999"></label>
+          </div>
+          <button class="btn" id="gcdSearch" type="button">Search GCD</button>
+          <p id="gcdStatus" role="status" aria-live="polite"></p>
+          <div id="gcdCandidates"></div>
+          <button class="btn" id="gcdMore" type="button" hidden>Next results</button>
+          <div id="gcdComparison"></div>
+          <p>Metadata: <a href="https://www.comics.org/" target="_blank" rel="noopener noreferrer">Grand Comics Database</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>. Metadata selection does not validate page layouts.</p>
+        </details>
+        <div class="metadataGrid" id="metadataFields"></div><div class="metadataWarnings" id="metadataWarnings"></div></div>
       <footer class="metadataFoot"><button class="btn" id="metadataCancelBtn" type="button">Cancel</button><button class="btn primary" type="submit">Apply metadata</button></footer>
     </form>
   </section>
@@ -138,9 +166,9 @@ let projectMetadata={sources:{},warnings:[]};
 function normalizeProjectMetadata(metadata={}){const normalized={sources:{},warnings:[],comicinfo_path:null,...metadata};normalized.sources={...(metadata?.sources||{})};normalized.warnings=Array.isArray(metadata?.warnings)?metadata.warnings.filter(Boolean):[];metadataFields.forEach(([key])=>{if(key==='release_tags'&&Array.isArray(normalized[key]))normalized[key]=normalized[key].join(', ');else if(normalized[key]===undefined||normalized[key]===null)normalized[key]='';else normalized[key]=String(normalized[key])});return normalized}
 function metadataInputValue(key,value){const normalized=String(value??'').trim();if(key==='release_tags')return[...new Set(normalized.split(',').map(tag=>tag.trim()).filter(Boolean))];if(numericMetadataFields.has(key))return normalized?Number(normalized):null;return normalized||null}
 function hasMetadataInputValue(value){return Array.isArray(value)?value.length>0:value!==null&&value!==''}
-function metadataDraft(){const draft={sources:{...projectMetadata.sources}};metadataFields.forEach(([key])=>{const value=metadataInputValue(key,projectMetadata[key]);if(hasMetadataInputValue(value))draft[key]=value});if(projectMetadata.comicinfo_path)draft.comicinfo_path=projectMetadata.comicinfo_path;draft.warnings=[...(projectMetadata.warnings||[])];return draft}
+function metadataDraft(){const draft={sources:{...projectMetadata.sources},provider_records:projectMetadata.provider_records||{},field_provenance:projectMetadata.field_provenance||{}};metadataFields.forEach(([key])=>{const value=metadataInputValue(key,projectMetadata[key]);if(hasMetadataInputValue(value))draft[key]=value});if(projectMetadata.comicinfo_path)draft.comicinfo_path=projectMetadata.comicinfo_path;draft.warnings=[...(projectMetadata.warnings||[])];return draft}
 function metadataWarnings(metadata=projectMetadata){const declared=Number(String(metadata.page_count??'').trim());if(Number.isFinite(declared)&&String(metadata.page_count??'').trim()!==''&&declared!==pages.length){const source=metadata.sources?.page_count==='comicinfo.xml'?'ComicInfo.xml':'Metadata';return [`${source} declares ${declared} pages, but this project contains ${pages.length}.`]}return []}
-function metadataSourceLabel(source){return source==='comicinfo.xml'?'ComicInfo.xml':source==='filename'?'Filename':source==='derived'?'Derived':'Manual'}
+function metadataSourceLabel(source){return source==='gcd'?'GCD':source==='comicinfo.xml'?'ComicInfo.xml':source==='filename'?'Filename':source==='derived'?'Derived':'Manual'}
 function metadataTitleSuggestion(){const parts=[projectMetadata.series,projectMetadata.number,projectMetadata.title].map(value=>String(value||'').trim()).filter(Boolean);return parts.join(' — ')||pages[0]?.filename?.replace(/\.[^.]+$/,'')||'Untitled comic'}
 function updateMetadataButton(){const populated=metadataFields.filter(([key])=>String(projectMetadata[key]??'').trim()).length,button=$('metadataBtn');button.textContent=populated?`Metadata (${populated})`:'Metadata';button.title=projectMetadata.comicinfo_path?`Imported from ${projectMetadata.comicinfo_path}`:'Edit project metadata'}
 function renderMetadataForm(){
@@ -181,6 +209,12 @@ function renderMetadataForm(){
     const source=document.createElement('small');
     source.className='metadataSource';
     source.textContent=projectMetadata.sources?.[key]?`Source: ${metadataSourceLabel(projectMetadata.sources[key])}`:'Not set';
+    const record=projectMetadata.provider_records?.[projectMetadata.field_provenance?.[key]?.record_id];
+    if(projectMetadata.sources?.[key]==='gcd'&&record){
+      const link=document.createElement('a');
+      if(/^https:\/\/www\.comics\.org\/issue\/\d+\/$/.test(record.source_url))link.href=record.source_url;
+      link.textContent=' View source (CC BY-SA 4.0)';link.target='_blank';link.rel='noopener noreferrer';source.appendChild(link);
+    }
     field.append(caption,control,source);
     grid.appendChild(field);
   });
@@ -189,9 +223,118 @@ function renderMetadataForm(){
   const warnings=[...(projectMetadata.warnings||[]),...metadataWarnings()].filter((warning,index,list)=>list.indexOf(warning)===index);
   $('metadataWarnings').textContent=warnings.join(' ');
 }
-function openMetadata(){renderMetadataForm();$('metadataModal').hidden=false;$('metadataFields').querySelector('input,textarea')?.focus()}
-function closeMetadata(){ $('metadataModal').hidden=true }
-function applyMetadataForm(){const previous=metadataDraft(),next=normalizeProjectMetadata(projectMetadata);$('metadataFields').querySelectorAll('[data-meta]').forEach(control=>{const key=control.dataset.meta,value=control.value.trim(),nextValue=metadataInputValue(key,value);next[key]=value;if(JSON.stringify(previous[key]??null)!==JSON.stringify(nextValue)){if(hasMetadataInputValue(nextValue))next.sources[key]='manual';else delete next.sources[key]}});next.warnings=metadataWarnings(next);projectMetadata=next;closeMetadata();updateMetadataButton();setStatus('Metadata updated — save project to persist',true)}
+function openMetadata(){renderMetadataForm();resetGcdLookup();$('metadataModal').hidden=false;$('app').inert=true;$('metadataFields').querySelector('input,textarea')?.focus()}
+function closeMetadata(){cancelGcdLookup();$('metadataModal').hidden=true;$('app').inert=false;$('metadataBtn').focus()}
+function applyMetadataForm(){
+  const previous=metadataDraft(),next=normalizeProjectMetadata(projectMetadata);
+  next.provider_records={...(projectMetadata.provider_records||{})};
+  next.field_provenance={...(projectMetadata.field_provenance||{})};
+  $('metadataFields').querySelectorAll('[data-meta]').forEach(control=>{
+    const key=control.dataset.meta,value=control.value.trim(),nextValue=metadataInputValue(key,value),pending=gcdPendingFields[key];
+    next[key]=value;
+    if(pending&&JSON.stringify(nextValue)===JSON.stringify(pending.value)){
+      next.sources[key]='gcd';next.provider_records[pending.record_id]=pending.record;
+      next.field_provenance[key]={record_id:pending.record_id,original_value:pending.value};
+    }else if(JSON.stringify(previous[key]??null)!==JSON.stringify(nextValue)){
+      if(hasMetadataInputValue(nextValue))next.sources[key]='manual';else delete next.sources[key];
+      delete next.field_provenance[key];
+    }
+  });
+  const used=new Set(Object.values(next.field_provenance).map(item=>item.record_id));
+  next.provider_records=Object.fromEntries(Object.entries(next.provider_records).filter(([id])=>used.has(id)));
+  if(used.size>8){$('gcdStatus').textContent='A project can use up to eight GCD records. Remove some imported fields before applying.';return}
+  next.warnings=metadataWarnings(next);projectMetadata=next;closeMetadata();updateMetadataButton();setStatus('Metadata updated — save project to persist',true);
+}
+let gcdRequest=null,gcdGeneration=0,gcdPendingFields={},gcdSearchParams=null,gcdNextPage=null;
+function cancelGcdLookup(){gcdGeneration++;gcdRequest?.abort();gcdRequest=null}
+function resetGcdLookup(){
+  cancelGcdLookup();gcdPendingFields={};gcdSearchParams=null;gcdNextPage=null;
+  $('gcdSeries').value=projectMetadata.series||'';$('gcdNumber').value=projectMetadata.number||'';$('gcdYear').value='';
+  $('gcdLanguage').value=projectMetadata.language_iso||'';
+  $('gcdCandidates').replaceChildren();$('gcdComparison').replaceChildren();$('gcdMore').hidden=true;
+  $('gcdStatus').textContent='';$('gcdLookup').open=!projectMetadata.comicinfo_path;
+}
+async function gcdJson(url,signal){
+  const response=await fetch(url,{signal});const data=await response.json();
+  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:`Lookup failed (${response.status}).`);
+  return data;
+}
+async function searchGcd(nextPage=false){
+  const series=$('gcdSeries').value.trim(),number=$('gcdNumber').value.trim(),year=$('gcdYear').value;
+  if(!nextPage){
+    if(!series||!number){$('gcdStatus').textContent='Enter a series name and issue number.';return}
+    if(!$('gcdYear').reportValidity()||!$('gcdLanguage').reportValidity())return;
+    gcdSearchParams=new URLSearchParams({series,number});if(year)gcdSearchParams.set('year',year);
+    const language=$('gcdLanguage').value.trim();if(language)gcdSearchParams.set('language',language);
+  }
+  cancelGcdLookup();const generation=gcdGeneration;gcdRequest=new AbortController();
+  const params=new URLSearchParams(gcdSearchParams);params.set('page',nextPage?gcdNextPage:1);
+  $('gcdCandidates').replaceChildren();$('gcdComparison').replaceChildren();$('gcdMore').hidden=true;
+  $('gcdStatus').textContent='Searching GCD…';
+  try{
+    const data=await gcdJson(`/v1/metadata/gcd/search?${params}`,gcdRequest.signal);
+    if(generation!==gcdGeneration)return;
+    for(const candidate of data.candidates){
+      const card=document.createElement('div');card.className='lookupCandidate';
+      const label=document.createElement('span');label.textContent=[candidate.label,candidate.language_iso?`Language: ${candidate.language_iso}`:'Language unknown',candidate.publication_date,candidate.page_count?`${candidate.page_count} pages`:null].filter(Boolean).join(' · ');
+      const choose=document.createElement('button');choose.type='button';choose.className='btn';choose.textContent='Compare fields';choose.onclick=()=>compareGcd(candidate.id);
+      card.append(label,choose);$('gcdCandidates').appendChild(card);
+    }
+    gcdNextPage=data.next_page;$('gcdMore').hidden=!gcdNextPage;
+    const scope=data.language?` for language ${data.language}`:'';
+    $('gcdStatus').textContent=data.candidates.length?`${data.candidates.length} candidate(s)${scope}, result page ${data.page}. Choose an edition to compare.`:`No candidates${scope} on result page ${data.page}. ${gcdNextPage?'Try Next results; later pages may contain matches.':'Try a shorter series name, alternate issue number, or remove the year or language filter.'}`;
+    if(data.filtered_count)$('gcdStatus').textContent+=` ${data.filtered_count} candidate(s) excluded by language on this page.`;
+    if(data.unknown_language_count)$('gcdStatus').textContent+=` ${data.unknown_language_count} candidate(s) have unknown language${data.language?' and were excluded':''}.`;
+  }catch(error){if(error.name!=='AbortError'&&generation===gcdGeneration)$('gcdStatus').textContent=error.message}
+}
+async function compareGcd(id){
+  cancelGcdLookup();const generation=gcdGeneration;gcdRequest=new AbortController();
+  $('gcdComparison').replaceChildren();$('gcdStatus').textContent='Loading issue, series and credits…';
+  try{
+    const detail=await gcdJson(`/v1/metadata/gcd/issues/${id}`,gcdRequest.signal);
+    if(generation!==gcdGeneration)return;
+    const panel=$('gcdComparison'),link=document.createElement('a');
+    link.href=detail.record.source_url;link.textContent=`View GCD issue ${id}`;link.target='_blank';link.rel='noopener noreferrer';panel.appendChild(link);
+    const table=document.createElement('table');table.className='lookupComparison';
+    const header=table.createTHead().insertRow();for(const title of ['Import','Field','Current value','GCD value']){const th=document.createElement('th');th.textContent=title;header.appendChild(th)}
+    const body=table.createTBody(),choices=[];
+    for(const [key,value] of Object.entries(detail.fields)){
+      if(!metadataFieldKeys.has(key))continue;
+      const control=$('metadataFields').querySelector(`[data-meta="${key}"]`),currentValue=metadataInputValue(key,control.value);
+      const row=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=!hasMetadataInputValue(currentValue);
+      check.setAttribute('aria-label',`Import ${key} from GCD`);row.insertCell().appendChild(check);
+      row.insertCell().textContent=metadataFields.find(([field])=>field===key)[1];
+      row.insertCell().textContent=control.value||'—';row.insertCell().textContent=String(value);
+      choices.push({key,value,control,check,baseline:control.value});
+    }
+    panel.appendChild(table);
+    const apply=document.createElement('button');apply.type='button';apply.className='btn';apply.textContent='Use selected fields';
+    apply.onclick=()=>{
+      let count=0;
+      for(const choice of choices){
+        if(!choice.check.checked||choice.control.value!==choice.baseline)continue;
+        choice.control.value=String(choice.value);
+        gcdPendingFields[choice.key]={value:choice.value,record_id:detail.record_id,record:detail.record};
+        choice.control.parentElement.querySelector('.metadataSource').textContent=`Source: GCD issue ${id} (pending)`;count++;
+      }
+      panel.replaceChildren();$('gcdStatus').textContent=`${count} field(s) copied. Apply metadata, then save the project to keep them.`;
+    };
+    panel.appendChild(apply);$('gcdStatus').textContent='Only empty fields are selected automatically. Select an existing field explicitly to replace it.';
+  }catch(error){if(error.name!=='AbortError'&&generation===gcdGeneration)$('gcdStatus').textContent=error.message}
+}
+$('gcdSearch').onclick=()=>searchGcd();$('gcdMore').onclick=()=>searchGcd(true);
+window.addEventListener('keydown',event=>{
+  if($('metadataModal').hidden)return;
+  event.stopImmediatePropagation();
+  if(event.key==='Escape'){event.preventDefault();closeMetadata()}
+  if(event.key==='Enter'&&['gcdLanguage','gcdSeries','gcdNumber','gcdYear'].includes(event.target.id)){event.preventDefault();searchGcd()}
+  if(event.key==='Tab'){
+    const focusable=[...$('metadataModal').querySelectorAll('input,textarea,select,button,a[href],summary')].filter(element=>!element.disabled&&element.getClientRects().length);
+    const first=focusable[0],last=focusable.at(-1);
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+  }
+},true);
 const reviewMeta={empty:{label:'No panels',title:'No panels to review'},model:{label:'Model — needs validation',title:'Panels produced by the model need review'},customized:{label:'Customized — needs validation',title:'Panels were edited and need review'},validated:{label:'Validated',title:'Panels have been reviewed'}};
 function pageReview(page){return page?.reviewStatus||(page?.panels?.length?'customized':'empty')}
 function pageModelIds(page){return page?.modelIds?.length?[...new Set(page.modelIds)]:[...new Set((page?.panels||[]).map(panel=>panel.model).filter(Boolean))]}
@@ -274,6 +417,7 @@ function updatePreviewLabels(p){
   $('prevPanelNextBtn').textContent=atFullPage?(previewOverviewStage==='end'||!p.panels.length?'Next page':'First panel'):(previewPanelIdx===p.panels.length-1?'Full page':'Next panel');
   $('prevPanelPrevBtn').textContent=atFullPage?(previewOverviewStage==='end'&&p.panels.length?'Last panel':'Previous page'):(previewPanelIdx===0?'Full page':'Previous panel');
 }
+let previewBlurEnabled=false,previewBlurStrength=.4;
 function renderPreviewOverlay(camera,p){
   if(previewPanelIdx===-1||!p.panels[previewPanelIdx])return;
   const pan=p.panels[previewPanelIdx],ns='http://www.w3.org/2000/svg';
@@ -281,15 +425,24 @@ function renderPreviewOverlay(camera,p){
   mask.setAttribute('id','previewOutsideMask');mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x','0');mask.setAttribute('y','0');mask.setAttribute('width',p.w);mask.setAttribute('height',p.h);
   const base=document.createElementNS(ns,'rect');base.setAttribute('x','0');base.setAttribute('y','0');base.setAttribute('width',p.w);base.setAttribute('height',p.h);base.setAttribute('fill','white');
   const hole=document.createElementNS(ns,'polygon');hole.setAttribute('points',pan.points.map(q=>q.join(',')).join(' '));hole.setAttribute('fill','black');applyFocusFeather(defs,hole,p.w,p.h,'previewFocusFeather');mask.append(base,hole);defs.appendChild(mask);
-  if(previewOverlayMode==='normal')return;
-  if(previewOverlayMode==='bw'){
-    const filter=document.createElementNS(ns,'filter');filter.setAttribute('id','previewGrayscale');
-    const grayscale=document.createElementNS(ns,'feColorMatrix');grayscale.setAttribute('type','saturate');grayscale.setAttribute('values','0');filter.appendChild(grayscale);defs.appendChild(filter);
-    addSvg('image',{href:p.src,x:0,y:0,width:p.w,height:p.h,filter:'url(#previewGrayscale)',opacity:previewBwOpacity,mask:'url(#previewOutsideMask)','pointer-events':'none'},camera);
-    return;
+  renderOutsideEffects(camera,defs,[{page:p,x:0,y:0,w:p.w,h:p.h}],p.w,p.h,'previewOutsideMask');
+}
+function renderOutsideEffects(camera,defs,entries,width,height,maskId){
+  const blur=previewBlurEnabled&&previewBlurStrength>0,bw=previewOverlayMode==='bw';
+  if(blur||bw){
+    const filterId=`${maskId}Effects`;
+    const filter=addSvg('filter',{id:filterId,x:'0%',y:'0%',width:'100%',height:'100%','color-interpolation-filters':'sRGB'},defs);
+    // Keep the processed image fully opaque when blurred: blending it with the
+    // sharp base to control B&W strength would also weaken the blur.
+    if(bw)addSvg('feColorMatrix',{type:'saturate',values:blur?1-previewBwOpacity:0},filter);
+    if(blur)addSvg('feGaussianBlur',{stdDeviation:Math.min(width,height)*previewBlurStrength/100,edgeMode:'duplicate'},filter);
+    const outside=addSvg('g',{mask:`url(#${maskId})`,'pointer-events':'none'},camera);
+    entries.forEach(item=>addSvg('image',{href:item.page.src,x:item.x,y:item.y,width:item.w,height:item.h,filter:`url(#${filterId})`,opacity:blur?1:previewBwOpacity},outside));
   }
-  const faded=previewOverlayMode==='faded';
-  addSvg('rect',{x:0,y:0,width:p.w,height:p.h,fill:faded?'#eee9df':'black','fill-opacity':(faded?previewFadedOpacity:previewDarkOpacity),mask:'url(#previewOutsideMask)','pointer-events':'none'},camera);
+  if(previewOverlayMode==='dark'||previewOverlayMode==='faded'){
+    const faded=previewOverlayMode==='faded';
+    addSvg('rect',{x:0,y:0,width,height,fill:faded?'#eee9df':'black','fill-opacity':faded?previewFadedOpacity:previewDarkOpacity,mask:`url(#${maskId})`,'pointer-events':'none'},camera);
+  }
 }
 function applyFocusFeather(defs,hole,width,height,id){
   if(!previewFocusFeather)return;
@@ -394,6 +547,7 @@ $('prevPageNextBtn').onclick=()=>movePreviewPage(1);
 $('prevPanelPrevBtn').onclick=()=>stepPreview(-1);
 $('prevPanelNextBtn').onclick=()=>stepPreview(1);
 $('previewOverlayMode').onchange=e=>{previewOverlayMode=e.target.value;render()};
+$('previewBlurEnabled').onchange=e=>{previewBlurEnabled=e.target.checked;render()};
 $('previewBackgroundFill').onchange=e=>{previewFillBackground=e.target.checked;render()};
 $('previewSpread').onchange=e=>{previewSpread=e.target.checked;previewPanelIdx=-1;previewOverviewStage='start';render()};
 $('previewAnimationEnabled').onchange=e=>{previewAnimationEnabled=e.target.checked};
@@ -403,6 +557,7 @@ function updatePreviewAdvancedValues(){
   $('previewFadedOpacityValue').textContent=`${Math.round(previewFadedOpacity*100)}%`;
   $('previewBwOpacityValue').textContent=`${Math.round(previewBwOpacity*100)}%`;
   $('previewFocusFeatherValue').textContent=`${previewFocusFeather.toFixed(1)}%`;
+  $('previewBlurStrengthValue').textContent=`${previewBlurStrength.toFixed(1)}%`;
   $('previewAnimationDurationValue').textContent=`${previewAnimationDuration}ms`;
 }
 function bindPreviewRange(inputId,apply){
@@ -414,6 +569,7 @@ bindPreviewRange('previewDarkOpacity',value=>previewDarkOpacity=value/100);
 bindPreviewRange('previewFadedOpacity',value=>previewFadedOpacity=value/100);
 bindPreviewRange('previewBwOpacity',value=>previewBwOpacity=value/100);
 bindPreviewRange('previewFocusFeather',value=>previewFocusFeather=value);
+bindPreviewRange('previewBlurStrength',value=>previewBlurStrength=value);
 bindPreviewRange('previewAnimationDuration',value=>previewAnimationDuration=value);
 updatePreviewAdvancedValues();
 
@@ -459,15 +615,7 @@ function renderSpreadPreviewOverlay(camera,layout,entry){
   mask.setAttribute('id','spreadPreviewOutsideMask');mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x','0');mask.setAttribute('y','0');mask.setAttribute('width',layout.width);mask.setAttribute('height',layout.height);
   const base=document.createElementNS(ns,'rect');base.setAttribute('x','0');base.setAttribute('y','0');base.setAttribute('width',layout.width);base.setAttribute('height',layout.height);base.setAttribute('fill','white');
   const hole=document.createElementNS(ns,'polygon');hole.setAttribute('points',spreadPanelPoints(entry,panel).map(point=>point.join(',')).join(' '));hole.setAttribute('fill','black');applyFocusFeather(defs,hole,layout.width,layout.height,'spreadPreviewFocusFeather');mask.append(base,hole);defs.appendChild(mask);
-  if(previewOverlayMode==='normal')return;
-  if(previewOverlayMode==='bw'){
-    const filter=document.createElementNS(ns,'filter');filter.setAttribute('id','spreadPreviewGrayscale');
-    const grayscale=document.createElementNS(ns,'feColorMatrix');grayscale.setAttribute('type','saturate');grayscale.setAttribute('values','0');filter.appendChild(grayscale);defs.appendChild(filter);
-    layout.entries.forEach(item=>addSvg('image',{href:item.page.src,x:item.x,y:item.y,width:item.w,height:item.h,filter:'url(#spreadPreviewGrayscale)',opacity:previewBwOpacity,mask:'url(#spreadPreviewOutsideMask)','pointer-events':'none'},camera));
-    return;
-  }
-  const faded=previewOverlayMode==='faded';
-  addSvg('rect',{x:0,y:0,width:layout.width,height:layout.height,fill:faded?'#eee9df':'black','fill-opacity':(faded?previewFadedOpacity:previewDarkOpacity),mask:'url(#spreadPreviewOutsideMask)','pointer-events':'none'},camera);
+  renderOutsideEffects(camera,defs,layout.entries,layout.width,layout.height,'spreadPreviewOutsideMask');
 }
 function applySpreadPreviewCamera(camera,layout,entry){
   const panel=entry.page.panels[previewPanelIdx],b=bbox(spreadPanelPoints(entry,panel)),pad=1.12,scale=Math.min(layout.width/(b.w*pad),layout.height/(b.h*pad)),cx=b.x+b.w/2,cy=b.y+b.h/2,target={x:layout.width/2-cx*scale,y:layout.height/2-cy*scale,scale};
