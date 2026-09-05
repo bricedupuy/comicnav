@@ -32,6 +32,7 @@ services:
       HF_TOKEN: ${HF_TOKEN:-}
       GCD_USERNAME: ${GCD_USERNAME:-}
       GCD_PASSWORD: ${GCD_PASSWORD:-}
+      COMICVINE_API_KEY: ${COMICVINE_API_KEY:-}
       # Set DATABASE_URL for a managed PostgreSQL instance. Otherwise the
       # application builds a URL from these local Compose credentials.
       DATABASE_URL: ${DATABASE_URL:-}

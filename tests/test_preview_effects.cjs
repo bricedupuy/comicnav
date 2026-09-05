@@ -38,6 +38,9 @@ for(const spread of [false,true]) for(const mode of ['normal','bw','dark','faded
   assert.equal(Boolean(effectFilter),blur||mode==='bw');
   if(effectFilter) {
     assert.equal(find(effectFilter,'feGaussianBlur').length,blur?1:0);
+    const alpha=find(effectFilter,'feFuncA');
+    assert.equal(alpha.length,blur?1:0);
+    if(blur){assert.equal(alpha[0].attrs.intercept,'1');assert.equal(alpha[0].attrs.slope,'0')}
     const matrix=find(effectFilter,'feColorMatrix');
     assert.equal(matrix.length,mode==='bw'?1:0);
     if(matrix.length) assert.ok(Math.abs(Number(matrix[0].attrs.values)-(blur?.1:0))<1e-9);
@@ -61,4 +64,5 @@ for(const spread of [false,true]) {
 }
 assert.match(html,/id="previewBlurEnabled" type="checkbox"/);
 assert.match(html,/bindPreviewRange\('previewBlurStrength'/);
+assert.match(html,/id="previewBlurStrength" type="range" min="0" max="1" step="0.05"/);
 console.log('Preview scripts parse; blur combinations, feather masks, spread coverage, zero strength and overview checks pass.');

@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Preview blur browser regression</title>
+<p id="result">RUNNING</p>
+<script>
+// Serve the repository locally, then open /tests/test_preview_browser.html.
+// Rasterize the real SVG renderer to verify blur at page edges, not just its DOM.
+(async()=>{
+  const html=await (await fetch('../web/editor.html')).text();
+  const source=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).find(s=>s.includes('function renderOutsideEffects('));
+  const code=source.slice(source.indexOf('let previewBlurEnabled='),source.indexOf('function identityCamera('));
+  const render=new Function('camera','page','strength',`
+    const previewPanelIdx=0,previewOverlayMode='normal',previewBwOpacity=.9,previewDarkOpacity=.74,previewFadedOpacity=.58,previewFocusFeather=0;
+    function addSvg(tag,attrs,parent){const el=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);parent.appendChild(el);return el}
+    ${code}
+    previewBlurEnabled=true;previewBlurStrength=strength;renderPreviewOverlay(camera,page);
+  `);
+  const pattern=document.createElement('canvas');pattern.width=200;pattern.height=300;
+  const ctx=pattern.getContext('2d');
+  for(let y=0;y<300;y++){ctx.fillStyle=y%2?'white':'black';ctx.fillRect(0,y,200,1)}
+  const page={w:200,h:300,src:pattern.toDataURL(),panels:[{points:[[60,60],[140,60],[140,240],[60,240]]}]};
+  async function sample(strength){
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width',200);svg.setAttribute('height',300);
+    const base=document.createElementNS(svg.namespaceURI,'image');base.setAttribute('href',page.src);base.setAttribute('width',200);base.setAttribute('height',300);svg.appendChild(base);
+    render(svg,page,strength);
+    const image=new Image();image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));await image.decode();
+    const canvas=document.createElement('canvas');canvas.width=200;canvas.height=300;
+    const output=canvas.getContext('2d');output.drawImage(image,0,0);
+    const delta=x=>Math.abs(output.getImageData(x,30,1,1).data[0]-output.getImageData(x,31,1,1).data[0]);
+    const focus=Math.abs(output.getImageData(100,100,1,1).data[0]-output.getImageData(100,101,1,1).data[0]);
+    document.body.append(canvas);
+    return {left:delta(0),right:delta(199),interior:delta(20),focus};
+  }
+  const normal=await sample(0),blur=await sample(1);
+  if(normal.left<240||blur.left>25||blur.right>25||blur.interior>25||blur.focus<240)throw new Error(JSON.stringify({normal,blur}));
+  document.getElementById('result').textContent='PASS: page edges blur without sharp-base bleed; focused panel stays sharp. '+JSON.stringify({normal,blur});
+})().catch(error=>{document.getElementById('result').textContent='FAIL: '+error.message});
+</script>

@@ -43,6 +43,7 @@ class Settings(BaseModel):
     media_dir: Path = Path(os.getenv("MEDIA_DIR", "/data/media"))
     gcd_username: str = os.getenv("GCD_USERNAME", "")
     gcd_password: str = os.getenv("GCD_PASSWORD", "")
+    comicvine_api_key: str = Field(default=os.getenv("COMICVINE_API_KEY", ""), repr=False)
 
 
 settings = Settings()

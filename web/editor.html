@@ -115,7 +115,7 @@
       <label class="previewRange">Faded <input id="previewFadedOpacity" type="range" min="0" max="100" step="1" value="58"><output id="previewFadedOpacityValue">58%</output></label>
       <label class="previewRange">B&amp;W <input id="previewBwOpacity" type="range" min="0" max="100" step="1" value="90"><output id="previewBwOpacityValue">90%</output></label>
       <label class="previewRange">Feather <input id="previewFocusFeather" type="range" min="0" max="2" step="0.1" value="2"><output id="previewFocusFeatherValue">2.0%</output></label>
-      <label class="previewRange" title="Blur radius as a percentage of the page's shorter side">Blur strength <input id="previewBlurStrength" type="range" min="0" max="2" step="0.1" value="0.4"><output id="previewBlurStrengthValue">0.4%</output></label>
+      <label class="previewRange" title="Blur radius as a percentage of the page's shorter side">Blur strength <input id="previewBlurStrength" type="range" min="0" max="1" step="0.05" value="0.4"><output id="previewBlurStrengthValue">0.40%</output></label>
       <label class="previewRange">Animation <input id="previewAnimationDuration" type="range" min="100" max="2000" step="50" value="300"><output id="previewAnimationDurationValue">300ms</output></label>
     </div>
   </div>
@@ -126,21 +126,25 @@
     <form id="metadataForm">
       <div class="metadataBody"><p class="metadataSummary" id="metadataSummary"></p>
         <details class="metadataLookup" id="gcdLookup">
-          <summary>Find metadata — Grand Comics Database</summary>
+          <summary>Find metadata — GCD / Comic Vine</summary>
           <p>Search by series and issue number. Leave year empty to include editions with unknown dates. You choose which fields to import.</p>
           <div class="lookupInputs">
+            <label>Source<select class="field" id="metadataProvider"><option value="gcd">Grand Comics Database</option><option value="comicvine">Comic Vine</option></select></label>
             <label>Language<input class="field" id="gcdLanguage" list="gcdLanguages" maxlength="35" pattern="[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*" placeholder="All languages (or enter fr, en…)" title="Language code, e.g. fr or en. Leave blank for all languages."></label>
             <datalist id="gcdLanguages"><option value="fr">French</option><option value="en">English</option><option value="nl">Dutch</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="ja">Japanese</option></datalist>
             <label>Series<input class="field" id="gcdSeries" maxlength="200" placeholder="Largo Winch"></label>
             <label>Issue / number<input class="field" id="gcdNumber" maxlength="50" placeholder="25"></label>
             <label>Issue year (optional)<input class="field" id="gcdYear" type="number" min="1" max="9999"></label>
           </div>
+          <p id="metadataProviderNotice"></p>
           <button class="btn" id="gcdSearch" type="button">Search GCD</button>
+          <button class="btn" id="metadataBack" type="button" hidden>Back to series search</button>
           <p id="gcdStatus" role="status" aria-live="polite"></p>
           <div id="gcdCandidates"></div>
           <button class="btn" id="gcdMore" type="button" hidden>Next results</button>
           <div id="gcdComparison"></div>
           <p>Metadata: <a href="https://www.comics.org/" target="_blank" rel="noopener noreferrer">Grand Comics Database</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>. Metadata selection does not validate page layouts.</p>
+          <p><a href="https://comicvine.gamespot.com/" target="_blank" rel="noopener noreferrer">Comic Vine</a> metadata has separate <a href="https://comicvine.gamespot.com/api/" target="_blank" rel="noopener noreferrer">API terms</a>, not the GCD license. Set COMICVINE_API_KEY on the server to enable lookup.</p>
         </details>
         <div class="metadataGrid" id="metadataFields"></div><div class="metadataWarnings" id="metadataWarnings"></div></div>
       <footer class="metadataFoot"><button class="btn" id="metadataCancelBtn" type="button">Cancel</button><button class="btn primary" type="submit">Apply metadata</button></footer>
@@ -168,7 +172,11 @@ function metadataInputValue(key,value){const normalized=String(value??'').trim()
 function hasMetadataInputValue(value){return Array.isArray(value)?value.length>0:value!==null&&value!==''}
 function metadataDraft(){const draft={sources:{...projectMetadata.sources},provider_records:projectMetadata.provider_records||{},field_provenance:projectMetadata.field_provenance||{}};metadataFields.forEach(([key])=>{const value=metadataInputValue(key,projectMetadata[key]);if(hasMetadataInputValue(value))draft[key]=value});if(projectMetadata.comicinfo_path)draft.comicinfo_path=projectMetadata.comicinfo_path;draft.warnings=[...(projectMetadata.warnings||[])];return draft}
 function metadataWarnings(metadata=projectMetadata){const declared=Number(String(metadata.page_count??'').trim());if(Number.isFinite(declared)&&String(metadata.page_count??'').trim()!==''&&declared!==pages.length){const source=metadata.sources?.page_count==='comicinfo.xml'?'ComicInfo.xml':'Metadata';return [`${source} declares ${declared} pages, but this project contains ${pages.length}.`]}return []}
-function metadataSourceLabel(source){return source==='gcd'?'GCD':source==='comicinfo.xml'?'ComicInfo.xml':source==='filename'?'Filename':source==='derived'?'Derived':'Manual'}
+function metadataSourceLabel(source){return source==='gcd'?'GCD':source==='comicvine'?'Comic Vine':source==='comicinfo.xml'?'ComicInfo.xml':source==='filename'?'Filename':source==='derived'?'Derived':'Manual'}
+function metadataSourceUrl(record){
+  const url=record?.source_url||'';
+  return (record?.provider==='gcd'&&/^https:\/\/www\.comics\.org\/issue\/\d+\/$/.test(url))||(record?.provider==='comicvine'&&/^https:\/\/comicvine\.gamespot\.com\/[^/?#]*\/4000-\d+\/$/.test(url))?url:'';
+}
 function metadataTitleSuggestion(){const parts=[projectMetadata.series,projectMetadata.number,projectMetadata.title].map(value=>String(value||'').trim()).filter(Boolean);return parts.join(' — ')||pages[0]?.filename?.replace(/\.[^.]+$/,'')||'Untitled comic'}
 function updateMetadataButton(){const populated=metadataFields.filter(([key])=>String(projectMetadata[key]??'').trim()).length,button=$('metadataBtn');button.textContent=populated?`Metadata (${populated})`:'Metadata';button.title=projectMetadata.comicinfo_path?`Imported from ${projectMetadata.comicinfo_path}`:'Edit project metadata'}
 function renderMetadataForm(){
@@ -210,10 +218,10 @@ function renderMetadataForm(){
     source.className='metadataSource';
     source.textContent=projectMetadata.sources?.[key]?`Source: ${metadataSourceLabel(projectMetadata.sources[key])}`:'Not set';
     const record=projectMetadata.provider_records?.[projectMetadata.field_provenance?.[key]?.record_id];
-    if(projectMetadata.sources?.[key]==='gcd'&&record){
+    if(['gcd','comicvine'].includes(projectMetadata.sources?.[key])&&record){
       const link=document.createElement('a');
-      if(/^https:\/\/www\.comics\.org\/issue\/\d+\/$/.test(record.source_url))link.href=record.source_url;
-      link.textContent=' View source (CC BY-SA 4.0)';link.target='_blank';link.rel='noopener noreferrer';source.appendChild(link);
+      if(metadataSourceUrl(record))link.href=metadataSourceUrl(record);
+      link.textContent=record.provider==='gcd'?' View source (CC BY-SA 4.0)':' View source (Comic Vine API terms)';link.target='_blank';link.rel='noopener noreferrer';source.appendChild(link);
     }
     field.append(caption,control,source);
     grid.appendChild(field);
@@ -233,7 +241,7 @@ function applyMetadataForm(){
     const key=control.dataset.meta,value=control.value.trim(),nextValue=metadataInputValue(key,value),pending=gcdPendingFields[key];
     next[key]=value;
     if(pending&&JSON.stringify(nextValue)===JSON.stringify(pending.value)){
-      next.sources[key]='gcd';next.provider_records[pending.record_id]=pending.record;
+      next.sources[key]=pending.record.provider;next.provider_records[pending.record_id]=pending.record;
       next.field_provenance[key]={record_id:pending.record_id,original_value:pending.value};
     }else if(JSON.stringify(previous[key]??null)!==JSON.stringify(nextValue)){
       if(hasMetadataInputValue(nextValue))next.sources[key]='manual';else delete next.sources[key];
@@ -242,15 +250,24 @@ function applyMetadataForm(){
   });
   const used=new Set(Object.values(next.field_provenance).map(item=>item.record_id));
   next.provider_records=Object.fromEntries(Object.entries(next.provider_records).filter(([id])=>used.has(id)));
-  if(used.size>8){$('gcdStatus').textContent='A project can use up to eight GCD records. Remove some imported fields before applying.';return}
+  if(used.size>8){$('gcdStatus').textContent='A project can use up to eight provider records. Remove some imported fields before applying.';return}
   next.warnings=metadataWarnings(next);projectMetadata=next;closeMetadata();updateMetadataButton();setStatus('Metadata updated — save project to persist',true);
 }
-let gcdRequest=null,gcdGeneration=0,gcdPendingFields={},gcdSearchParams=null,gcdNextPage=null;
+let gcdRequest=null,gcdGeneration=0,gcdPendingFields={},gcdSearchParams=null,gcdNextPage=null,gcdSearchProvider='gcd';
+function metadataProvider(){return $('metadataProvider').value==='comicvine'?'comicvine':'gcd'}
+function updateMetadataProvider(){
+  const cv=metadataProvider()==='comicvine';
+  $('gcdLanguage').disabled=cv;
+  $('gcdSearch').textContent=cv?'Search Comic Vine':'Search GCD';
+  $('metadataProviderNotice').textContent=cv?'Comic Vine cannot verify or filter by language. Choose a series, then an issue; verify the language and edition manually. Your existing language stays unchanged.':'';
+  $('metadataBack').hidden=true;
+}
 function cancelGcdLookup(){gcdGeneration++;gcdRequest?.abort();gcdRequest=null}
 function resetGcdLookup(){
   cancelGcdLookup();gcdPendingFields={};gcdSearchParams=null;gcdNextPage=null;
   $('gcdSeries').value=projectMetadata.series||'';$('gcdNumber').value=projectMetadata.number||'';$('gcdYear').value='';
   $('gcdLanguage').value=projectMetadata.language_iso||'';
+  updateMetadataProvider();
   $('gcdCandidates').replaceChildren();$('gcdComparison').replaceChildren();$('gcdMore').hidden=true;
   $('gcdStatus').textContent='';$('gcdLookup').open=!projectMetadata.comicinfo_path;
 }
@@ -259,25 +276,30 @@ async function gcdJson(url,signal){
   if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:`Lookup failed (${response.status}).`);
   return data;
 }
-async function searchGcd(nextPage=false){
+async function searchGcd(nextPage=false,volumeId=null){
   const series=$('gcdSeries').value.trim(),number=$('gcdNumber').value.trim(),year=$('gcdYear').value;
-  if(!nextPage){
+  if(!nextPage&&volumeId===null){
     if(!series||!number){$('gcdStatus').textContent='Enter a series name and issue number.';return}
-    if(!$('gcdYear').reportValidity()||!$('gcdLanguage').reportValidity())return;
+    if(!$('gcdYear').reportValidity()||(metadataProvider()==='gcd'&&!$('gcdLanguage').reportValidity()))return;
+    gcdSearchProvider=metadataProvider();
     gcdSearchParams=new URLSearchParams({series,number});if(year)gcdSearchParams.set('year',year);
-    const language=$('gcdLanguage').value.trim();if(language)gcdSearchParams.set('language',language);
+    const language=$('gcdLanguage').value.trim();if(language&&gcdSearchProvider==='gcd')gcdSearchParams.set('language',language);
   }
+  if(!gcdSearchParams)return;
+  if(volumeId!==null)gcdSearchParams.set('volume_id',volumeId);
+  const provider=gcdSearchProvider,providerLabel=metadataSourceLabel(provider);
   cancelGcdLookup();const generation=gcdGeneration;gcdRequest=new AbortController();
   const params=new URLSearchParams(gcdSearchParams);params.set('page',nextPage?gcdNextPage:1);
   $('gcdCandidates').replaceChildren();$('gcdComparison').replaceChildren();$('gcdMore').hidden=true;
-  $('gcdStatus').textContent='Searching GCD…';
+  $('gcdStatus').textContent=`Searching ${providerLabel}…`;
+  $('metadataBack').hidden=provider!=='comicvine'||!params.has('volume_id');
   try{
-    const data=await gcdJson(`/v1/metadata/gcd/search?${params}`,gcdRequest.signal);
+    const data=await gcdJson(`/v1/metadata/${provider}/search?${params}`,gcdRequest.signal);
     if(generation!==gcdGeneration)return;
     for(const candidate of data.candidates){
       const card=document.createElement('div');card.className='lookupCandidate';
       const label=document.createElement('span');label.textContent=[candidate.label,candidate.language_iso?`Language: ${candidate.language_iso}`:'Language unknown',candidate.publication_date,candidate.page_count?`${candidate.page_count} pages`:null].filter(Boolean).join(' · ');
-      const choose=document.createElement('button');choose.type='button';choose.className='btn';choose.textContent='Compare fields';choose.onclick=()=>compareGcd(candidate.id);
+      const choose=document.createElement('button');choose.type='button';choose.className='btn';choose.textContent=candidate.kind==='volume'?'Show matching issues':'Compare fields';choose.onclick=()=>candidate.kind==='volume'?searchGcd(false,candidate.id):compareGcd(candidate.id,provider);
       card.append(label,choose);$('gcdCandidates').appendChild(card);
     }
     gcdNextPage=data.next_page;$('gcdMore').hidden=!gcdNextPage;
@@ -285,24 +307,27 @@ async function searchGcd(nextPage=false){
     $('gcdStatus').textContent=data.candidates.length?`${data.candidates.length} candidate(s)${scope}, result page ${data.page}. Choose an edition to compare.`:`No candidates${scope} on result page ${data.page}. ${gcdNextPage?'Try Next results; later pages may contain matches.':'Try a shorter series name, alternate issue number, or remove the year or language filter.'}`;
     if(data.filtered_count)$('gcdStatus').textContent+=` ${data.filtered_count} candidate(s) excluded by language on this page.`;
     if(data.unknown_language_count)$('gcdStatus').textContent+=` ${data.unknown_language_count} candidate(s) have unknown language${data.language?' and were excluded':''}.`;
+    if(data.stage==='volumes'&&data.candidates.length)$('gcdStatus').textContent=`${data.candidates.length} series candidate(s), result page ${data.page}. Select a series to find issue ${params.get('number')}.`;
+    if(data.notice)$('gcdStatus').textContent+=` ${data.notice}`;
   }catch(error){if(error.name!=='AbortError'&&generation===gcdGeneration)$('gcdStatus').textContent=error.message}
 }
-async function compareGcd(id){
+async function compareGcd(id,provider=metadataProvider()){
+  const providerLabel=metadataSourceLabel(provider);
   cancelGcdLookup();const generation=gcdGeneration;gcdRequest=new AbortController();
   $('gcdComparison').replaceChildren();$('gcdStatus').textContent='Loading issue, series and credits…';
   try{
-    const detail=await gcdJson(`/v1/metadata/gcd/issues/${id}`,gcdRequest.signal);
+    const detail=await gcdJson(`/v1/metadata/${provider}/issues/${id}`,gcdRequest.signal);
     if(generation!==gcdGeneration)return;
     const panel=$('gcdComparison'),link=document.createElement('a');
-    link.href=detail.record.source_url;link.textContent=`View GCD issue ${id}`;link.target='_blank';link.rel='noopener noreferrer';panel.appendChild(link);
+    if(metadataSourceUrl(detail.record))link.href=metadataSourceUrl(detail.record);link.textContent=`View ${providerLabel} issue ${id}`;link.target='_blank';link.rel='noopener noreferrer';panel.appendChild(link);
     const table=document.createElement('table');table.className='lookupComparison';
-    const header=table.createTHead().insertRow();for(const title of ['Import','Field','Current value','GCD value']){const th=document.createElement('th');th.textContent=title;header.appendChild(th)}
+    const header=table.createTHead().insertRow();for(const title of ['Import','Field','Current value',`${providerLabel} value`]){const th=document.createElement('th');th.textContent=title;header.appendChild(th)}
     const body=table.createTBody(),choices=[];
     for(const [key,value] of Object.entries(detail.fields)){
       if(!metadataFieldKeys.has(key))continue;
       const control=$('metadataFields').querySelector(`[data-meta="${key}"]`),currentValue=metadataInputValue(key,control.value);
       const row=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=!hasMetadataInputValue(currentValue);
-      check.setAttribute('aria-label',`Import ${key} from GCD`);row.insertCell().appendChild(check);
+      check.setAttribute('aria-label',`Import ${key} from ${providerLabel}`);row.insertCell().appendChild(check);
       row.insertCell().textContent=metadataFields.find(([field])=>field===key)[1];
       row.insertCell().textContent=control.value||'—';row.insertCell().textContent=String(value);
       choices.push({key,value,control,check,baseline:control.value});
@@ -315,14 +340,20 @@ async function compareGcd(id){
         if(!choice.check.checked||choice.control.value!==choice.baseline)continue;
         choice.control.value=String(choice.value);
         gcdPendingFields[choice.key]={value:choice.value,record_id:detail.record_id,record:detail.record};
-        choice.control.parentElement.querySelector('.metadataSource').textContent=`Source: GCD issue ${id} (pending)`;count++;
+        choice.control.parentElement.querySelector('.metadataSource').textContent=`Source: ${providerLabel} issue ${id} (pending)`;count++;
       }
       panel.replaceChildren();$('gcdStatus').textContent=`${count} field(s) copied. Apply metadata, then save the project to keep them.`;
     };
     panel.appendChild(apply);$('gcdStatus').textContent='Only empty fields are selected automatically. Select an existing field explicitly to replace it.';
+    if(detail.notice)$('gcdStatus').textContent+=` ${detail.notice}`;
   }catch(error){if(error.name!=='AbortError'&&generation===gcdGeneration)$('gcdStatus').textContent=error.message}
 }
 $('gcdSearch').onclick=()=>searchGcd();$('gcdMore').onclick=()=>searchGcd(true);
+$('metadataBack').onclick=()=>searchGcd();
+$('metadataProvider').onchange=()=>{
+  cancelGcdLookup();gcdSearchParams=null;gcdNextPage=null;updateMetadataProvider();
+  $('gcdCandidates').replaceChildren();$('gcdComparison').replaceChildren();$('gcdMore').hidden=true;$('gcdStatus').textContent='';
+};
 window.addEventListener('keydown',event=>{
   if($('metadataModal').hidden)return;
   event.stopImmediatePropagation();
@@ -435,7 +466,14 @@ function renderOutsideEffects(camera,defs,entries,width,height,maskId){
     // Keep the processed image fully opaque when blurred: blending it with the
     // sharp base to control B&W strength would also weaken the blur.
     if(bw)addSvg('feColorMatrix',{type:'saturate',values:blur?1-previewBwOpacity:0},filter);
-    if(blur)addSvg('feGaussianBlur',{stdDeviation:Math.min(width,height)*previewBlurStrength/100,edgeMode:'duplicate'},filter);
+    if(blur){
+      addSvg('feGaussianBlur',{stdDeviation:Math.min(width,height)*previewBlurStrength/100,edgeMode:'duplicate'},filter);
+      // Some browsers blur against transparency at image edges despite edgeMode.
+      // Restore opacity within the page bounds so the sharp base cannot show
+      // through; the outside-panel mask (including feather) is applied afterward.
+      const alpha=addSvg('feComponentTransfer',{},filter);
+      addSvg('feFuncA',{type:'linear',slope:0,intercept:1},alpha);
+    }
     const outside=addSvg('g',{mask:`url(#${maskId})`,'pointer-events':'none'},camera);
     entries.forEach(item=>addSvg('image',{href:item.page.src,x:item.x,y:item.y,width:item.w,height:item.h,filter:`url(#${filterId})`,opacity:blur?1:previewBwOpacity},outside));
   }
@@ -557,7 +595,7 @@ function updatePreviewAdvancedValues(){
   $('previewFadedOpacityValue').textContent=`${Math.round(previewFadedOpacity*100)}%`;
   $('previewBwOpacityValue').textContent=`${Math.round(previewBwOpacity*100)}%`;
   $('previewFocusFeatherValue').textContent=`${previewFocusFeather.toFixed(1)}%`;
-  $('previewBlurStrengthValue').textContent=`${previewBlurStrength.toFixed(1)}%`;
+  $('previewBlurStrengthValue').textContent=`${previewBlurStrength.toFixed(2)}%`;
   $('previewAnimationDurationValue').textContent=`${previewAnimationDuration}ms`;
 }
 function bindPreviewRange(inputId,apply){

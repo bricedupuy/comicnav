@@ -102,8 +102,9 @@ def _metadata_payload(metadata: ProjectMetadata, actual_page_count: int) -> dict
     records = payload.get("provider_records", {})
     payload["field_provenance"] = {
         field: evidence for field, evidence in provenance.items()
-        if field in _METADATA_VALUE_FIELDS and sources.get(field) == "gcd"
+        if field in _METADATA_VALUE_FIELDS and sources.get(field) in ("gcd", "comicvine")
         and evidence["record_id"] in records
+        and records[evidence["record_id"]]["provider"] == sources.get(field)
     }
     used_records = {evidence["record_id"] for evidence in payload["field_provenance"].values()}
     payload["provider_records"] = {key: record for key, record in records.items() if key in used_records}

@@ -40,9 +40,13 @@ panel. It can be combined with Normal, B&W, Dark or Faded, in single-page and
 two-page spread mode. The focused panel stays sharp, with the existing Feather
 setting softening the boundary; full-page/spread overviews remain unaffected.
 Blur is off by default. **Advanced → Blur strength** adjusts the radius from
-0–2% of the page/spread's shorter side (default 0.4%, independent of filter opacity).
+0–1% of the page/spread's shorter side in 0.05% steps (default 0.4%, independent of filter opacity).
 
 Preview effect checks: `node tests/test_preview_effects.cjs`.
+For a browser pixel regression, serve the repository locally with
+`python -m http.server 8765 --bind 127.0.0.1` and open
+`http://127.0.0.1:8765/tests/test_preview_browser.html`. It checks both page
+edges and the sharp focused panel using the real SVG renderer.
 
 ## List models
 
@@ -219,7 +223,7 @@ of the durable archive manifest.
 
 ### Find metadata with GCD
 
-Open **Metadata → Find metadata — Grand Comics Database**. Enter the series
+Open **Metadata → Find metadata** and select **Grand Comics Database**. Enter the series
 name and issue number, choose the **language**, with an optional **issue** year, then search. Language
 is prefilled from the project's metadata (including ComicInfo.xml), or left blank
 for all languages when unknown. Enter an ISO language code such as `fr`, `nl` or
@@ -265,7 +269,43 @@ layout or validate guided navigation. Metadata attribution is
 [Grand Comics Database](https://www.comics.org/),
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 The adapter follows the [GCD API documentation](https://github.com/GrandComicsDatabase/gcd-django/wiki/API).
-Comic Vine is the next provider; it is not connected yet.
+
+### Find metadata with Comic Vine
+
+1. Obtain your own key from [Comic Vine's API page](https://comicvine.gamespot.com/api/).
+2. Set `COMICVINE_API_KEY` in Dokploy's environment (or your untracked `.env`),
+   then redeploy. The key is server-only: never enter it in project metadata,
+   client code, or a committed file. No new database migration is required.
+3. Open **Metadata → Find metadata → Source: Comic Vine**. Search by series and
+   issue number, select **Show matching issues** on a series, then **Compare fields**
+   on an issue. The optional year filters issue cover dates, not the series start year.
+4. Select fields, **Use selected fields → Apply metadata → Save project**.
+   Existing values remain unchecked; Cancel discards unapplied changes.
+
+Comic Vine does not provide a verified language field in this integration.
+Language filtering is disabled for this source, candidates are explicitly
+language-unverified, and existing project language is never inferred or overwritten.
+Check the edition manually; use GCD when language-filtered lookup is essential.
+The connector imports series, number, title, publisher, cover-date components,
+and supported creator credits; release/scan details remain independent.
+
+Imported fields retain their Comic Vine ID, link, timestamp and normalized-value
+snapshot. GCD and Comic Vine sources can coexist (eight records total per project).
+Comic Vine records retain their own API-terms label, **not** GCD's CC BY-SA license.
+Its [API terms](https://comicvine.gamespot.com/api/) restrict commercial use,
+competing products and redistribution. Review permissions before serving these
+values from the planned public Comics API; this connector does not grant that right.
+
+Requests have bounded one-hour caching, one-second spacing, a conservative
+180-request/resource/hour budget per process, and provider rate-limit cooldowns.
+The key is redacted from HTTP request logs and is not stored in provenance.
+Multiple workers or deployments sharing a key need a shared rate limiter.
+
+- `GET /v1/metadata/comicvine/search?series=Largo%20Winch&number=25` lists series.
+- Add `volume_id=<selected id>` to list matching issues; `page` paginates either stage.
+- `GET /v1/metadata/comicvine/issues/{id}` returns fields and provenance.
+
+Tests use synthetic provider responses; live Comic Vine access requires your key.
 
 For local verification, install the app dependencies and `pytest`, then run
 `python -B -m pytest -q`. The editor's JavaScript parser and metadata interaction

@@ -46,7 +46,7 @@ class ProjectCreateRequest(BaseModel):
     reading_direction: Literal["ltr", "rtl"] = "ltr"
 
 
-MetadataSource = Literal["comicinfo.xml", "filename", "manual", "derived", "gcd"]
+MetadataSource = Literal["comicinfo.xml", "filename", "manual", "derived", "gcd", "comicvine"]
 ReleaseType = Literal["digital", "scan", "hybrid", "epub_extract", "web_rip", "unknown", "other"]
 
 
@@ -61,8 +61,19 @@ class MetadataRecord(BaseModel):
     raw: dict = Field(default_factory=dict)
 
 
+class ComicVineMetadataRecord(BaseModel):
+    provider: Literal["comicvine"]
+    external_id: int = Field(gt=0)
+    source_url: str = Field(pattern=r"^https://comicvine\.gamespot\.com/[^/?#]*/4000-[0-9]+/$")
+    retrieved_at: datetime
+    adapter_version: Literal["comicvine-v1"]
+    license: Literal["Comic Vine API terms"]
+    attribution: Literal["Comic Vine"]
+    raw: dict = Field(default_factory=dict)
+
+
 class MetadataFieldProvenance(BaseModel):
-    record_id: str = Field(pattern=r"^gcd:issue:[0-9]+$")
+    record_id: str = Field(pattern=r"^(gcd|comicvine):issue:[0-9]+$")
     original_value: str | int
 
 
@@ -104,7 +115,7 @@ class ProjectMetadata(BaseModel):
     release_notes: str | None = Field(default=None, max_length=5_000)
     comicinfo_path: str | None = Field(default=None, max_length=500)
     sources: dict[str, MetadataSource] = Field(default_factory=dict, max_length=48)
-    provider_records: dict[str, MetadataRecord] = Field(default_factory=dict, max_length=8)
+    provider_records: dict[str, MetadataRecord | ComicVineMetadataRecord] = Field(default_factory=dict, max_length=8)
     field_provenance: dict[str, MetadataFieldProvenance] = Field(default_factory=dict, max_length=48)
     warnings: list[str] = Field(default_factory=list, max_length=20)
 
